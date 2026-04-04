@@ -29,13 +29,6 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return (
-    <div className="flex h-64 items-center justify-center"><LoadingSpinner size="lg" /></div>
-  );
-  if (error) return (
-    <div className="text-center py-20 text-red-500">{error}</div>
-  );
-
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning';
@@ -75,6 +68,13 @@ export default function DashboardPage() {
   }, [data]);
 
   const weekBarMax = useMemo(() => Math.max(...weekBars.map((b) => b.count), 1), [weekBars]);
+
+  if (loading) return (
+    <div className="flex h-64 items-center justify-center"><LoadingSpinner size="lg" /></div>
+  );
+  if (error) return (
+    <div className="text-center py-20 text-red-500">{error}</div>
+  );
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
