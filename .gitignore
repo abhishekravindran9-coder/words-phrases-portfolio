@@ -9,6 +9,10 @@ target/
 *.iml
 .vscode/
 
+# Local dev helper scripts
+run-prod-local.sh
+test-db.sh
+
 # Secrets — never commit these
 # application-prod.properties is safe to commit (uses only ${ENV_VAR} references)
 backend/src/main/resources/application-local.properties
