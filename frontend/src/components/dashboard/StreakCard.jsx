@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const MILESTONES = [7, 30, 100, 365];
 

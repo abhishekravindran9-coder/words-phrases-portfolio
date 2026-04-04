@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Bars3Icon, BellIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+import { Bars3Icon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
 /**

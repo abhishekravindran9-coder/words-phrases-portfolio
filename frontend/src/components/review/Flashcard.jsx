@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import Button from '../common/Button';
-import { QUALITY_LABELS } from '../../utils/constants';
+
 
 const QUALITY_BUTTONS = [
   { q: 0, label: '😶 Blackout', color: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200' },

@@ -14,7 +14,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 export default function ReviewChart({ reviewsPerDay = {} }) {
   const entries = Object.entries(reviewsPerDay).slice(-30);
   const labels  = entries.map(([d]) => {
-    const [y, m, day] = d.split('-');
+    const [, m, day] = d.split('-');
     return `${Number(m)}/${Number(day)}`;
   });
   const data = entries.map(([, v]) => v);

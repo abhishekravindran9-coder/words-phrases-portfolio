@@ -5,7 +5,6 @@ import WordCard from '../components/words/WordCard';
 import WordForm from '../components/words/WordForm';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
-import Input from '../components/common/Input';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';

@@ -14,7 +14,7 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
  * Profile page – manage display name, categories, and reminder settings.
  */
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [reminders,  setReminders]  = useState([]);
   const [loading,    setLoading]    = useState(true);

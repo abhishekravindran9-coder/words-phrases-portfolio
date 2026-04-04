@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import Button from './Button';
 
 /**
  * Accessible modal dialog with focus-trap and keyboard close (Escape).
