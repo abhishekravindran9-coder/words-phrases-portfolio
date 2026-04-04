@@ -11,7 +11,7 @@ import WeakestWords from '../components/dashboard/WeakestWords';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
   BookOpenIcon, CheckBadgeIcon, ClipboardDocumentCheckIcon,
-  CalendarDaysIcon, ExclamationTriangleIcon,
+  CalendarDaysIcon, ExclamationTriangleIcon, AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -87,13 +87,21 @@ export default function DashboardPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Here's your learning overview for today.</p>
         </div>
-        <Link to="/review">
-          <Button size="md">
-            {data?.dueToday > 0
-              ? `Start Review (${data.dueToday} due)`
-              : 'Start Review'}
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/review">
+            <Button size="md">
+              {data?.dueToday > 0
+                ? `Start Review (${data.dueToday} due)`
+                : 'Start Review'}
+            </Button>
+          </Link>
+          <Link to="/quiz">
+            <Button size="md" variant="secondary">
+              <AcademicCapIcon className="h-4 w-4 mr-1.5" />
+              Quick Quiz
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* ── Overdue alert ── */}
