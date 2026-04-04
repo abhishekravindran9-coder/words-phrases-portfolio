@@ -58,4 +58,10 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     /** Words overdue by more than 1 day. */
     @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.nextReviewDate < :yesterday AND w.mastered = false")
     long countOverdue(@Param("user") User user, @Param("yesterday") LocalDate yesterday);
+
+    long countByUserAndEntryType(User user, String entryType);
+
+    /** Mastered count per category for a user. */
+    @Query("SELECT w.category.id, COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = true AND w.category IS NOT NULL GROUP BY w.category.id")
+    List<Object[]> countMasteredByCategory(@Param("user") User user);
 }

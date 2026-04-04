@@ -41,4 +41,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     /** Count reviews done on a specific date. */
     long countByUserAndReviewDate(@Param("user") User user, @Param("date") LocalDate date);
+
+    /** Maximum reviews in a single day (all-time). */
+    @Query("SELECT MAX(cnt) FROM (SELECT COUNT(r) AS cnt FROM Review r WHERE r.user = :user GROUP BY r.reviewDate) sub")
+    Long maxReviewsInSingleDay(@Param("user") User user);
 }

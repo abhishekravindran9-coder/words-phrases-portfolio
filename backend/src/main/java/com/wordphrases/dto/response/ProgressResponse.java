@@ -41,6 +41,15 @@ public class ProgressResponse {
     /** Top 5 categories by word count. */
     private List<CategoryStatsDto> topCategories;
 
+    /** Total phrase entries. */
+    private Long totalPhrases;
+
+    /** Longest streak ever recorded. */
+    private Integer bestStreakDays;
+
+    /** Most reviews completed in a single day (all-time). */
+    private Long mostReviewsInDay;
+
     @Data
     @Builder
     @NoArgsConstructor

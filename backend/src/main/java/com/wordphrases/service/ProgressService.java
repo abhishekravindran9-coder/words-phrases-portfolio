@@ -33,10 +33,11 @@ public class ProgressService {
         LocalDate today = LocalDate.now();
         LocalDate thirtyDaysAgo = today.minusDays(30);
 
-        long totalWords = wordRepository.countByUser(user);
+        long totalWords    = wordRepository.countByUser(user);
         long masteredWords = wordRepository.countByUserAndMastered(user, true);
-        long dueReviews = wordRepository.countDueForReview(user, today);
-        long totalReviews = reviewRepository.countByUser(user);
+        long totalPhrases  = wordRepository.countByUserAndEntryType(user, "PHRASE");
+        long dueReviews    = wordRepository.countDueForReview(user, today);
+        long totalReviews  = reviewRepository.countByUser(user);
         double masteryRate = totalWords > 0 ? (double) masteredWords / totalWords * 100 : 0.0;
 
         // Reviews per day (last 30 days)
@@ -46,16 +47,26 @@ public class ProgressService {
 
         Double avgQuality = reviewRepository.averageQuality(user, thirtyDaysAgo, today);
 
-        int streak = computeStreak(reviewRepository.findDistinctReviewDatesByUser(user));
+        List<LocalDate> allReviewDates = reviewRepository.findDistinctReviewDatesByUser(user);
+        int currentStreak = computeStreak(allReviewDates);
+        int bestStreak    = computeBestStreak(allReviewDates);
 
-        // Top categories
+        Long mostInDay = reviewRepository.maxReviewsInSingleDay(user);
+
+        // Per-category mastered counts map
+        Map<Long, Long> masteredByCat = new java.util.HashMap<>();
+        for (Object[] row : wordRepository.countMasteredByCategory(user)) {
+            masteredByCat.put((Long) row[0], (Long) row[1]);
+        }
+
+        // Top categories (fix: use per-category mastered count)
         List<Object[]> catRows = categoryRepository.findCategoriesWithWordCount(user);
         List<ProgressResponse.CategoryStatsDto> topCategories = catRows.stream()
-                .limit(5)
+                .limit(8)
                 .map(row -> {
                     Category c = (Category) row[0];
-                    long wordCount = (Long) row[1];
-                    long masteredCount = wordRepository.countByUserAndMastered(user, true);
+                    long wordCount    = (Long) row[1];
+                    long masteredCount = masteredByCat.getOrDefault(c.getId(), 0L);
                     return ProgressResponse.CategoryStatsDto.builder()
                             .categoryId(c.getId())
                             .categoryName(c.getName())
@@ -75,8 +86,11 @@ public class ProgressService {
                 .reviewsPerDay(reviewsPerDay)
                 .averageQuality(avgQuality != null ? avgQuality : 0.0)
                 .dueReviews(dueReviews)
-                .currentStreakDays(streak)
+                .currentStreakDays(currentStreak)
+                .bestStreakDays(bestStreak)
+                .mostReviewsInDay(mostInDay != null ? mostInDay : 0L)
                 .topCategories(topCategories)
+                .totalPhrases(totalPhrases)
                 .build();
     }
 
@@ -99,5 +113,27 @@ public class ProgressService {
             }
         }
         return streak;
+    }
+
+    /**
+     * Finds the longest ever consecutive-day streak across all review dates.
+     */
+    private int computeBestStreak(List<LocalDate> sortedDatesDesc) {
+        if (sortedDatesDesc.isEmpty()) return 0;
+        // Work ascending for easier traversal
+        List<LocalDate> asc = sortedDatesDesc.stream()
+                .sorted()
+                .distinct()
+                .toList();
+        int best = 1, current = 1;
+        for (int i = 1; i < asc.size(); i++) {
+            if (asc.get(i).equals(asc.get(i - 1).plusDays(1))) {
+                current++;
+                best = Math.max(best, current);
+            } else {
+                current = 1;
+            }
+        }
+        return best;
     }
 }
