@@ -8,7 +8,7 @@ import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { CATEGORY_COLORS } from '../utils/constants';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 
 /**
  * Profile page – manage display name, categories, and reminder settings.
@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [catModal,  setCatModal]  = useState(false);
   const [catForm,   setCatForm]   = useState({ name: '', color: CATEGORY_COLORS[0], description: '' });
   const [catSaving, setCatSaving] = useState(false);
+  const [editCat,   setEditCat]   = useState(null);  // null = create, {id,...} = edit
 
   // Reminder modal
   const [remModal,  setRemModal]  = useState(false);
@@ -36,17 +37,34 @@ export default function ProfilePage() {
   }, []);
 
   // -- Categories --
-  const createCategory = async (e) => {
+  const openNewCat = () => {
+    setEditCat(null);
+    setCatForm({ name: '', color: CATEGORY_COLORS[0], description: '' });
+    setCatModal(true);
+  };
+
+  const openEditCat = (cat) => {
+    setEditCat(cat);
+    setCatForm({ name: cat.name, color: cat.color || CATEGORY_COLORS[0], description: cat.description || '' });
+    setCatModal(true);
+  };
+
+  const submitCat = async (e) => {
     e.preventDefault();
     setCatSaving(true);
     try {
-      const cat = await categoryService.createCategory(catForm);
-      setCategories((cs) => [...cs, cat]);
+      if (editCat) {
+        const updated = await categoryService.updateCategory(editCat.id, catForm);
+        setCategories((cs) => cs.map((c) => (c.id === editCat.id ? { ...c, ...updated } : c)));
+        toast.success('Category updated!');
+      } else {
+        const cat = await categoryService.createCategory(catForm);
+        setCategories((cs) => [...cs, cat]);
+        toast.success('Category created!');
+      }
       setCatModal(false);
-      setCatForm({ name: '', color: CATEGORY_COLORS[0], description: '' });
-      toast.success('Category created!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create category');
+      toast.error(err.response?.data?.message || 'Failed to save category');
     } finally {
       setCatSaving(false);
     }
@@ -123,7 +141,7 @@ export default function ProfilePage() {
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800 text-lg">Word Categories</h2>
-          <Button size="sm" onClick={() => setCatModal(true)}>
+          <Button size="sm" onClick={openNewCat}>
             <PlusIcon className="h-4 w-4" /> New
           </Button>
         </div>
@@ -133,11 +151,22 @@ export default function ProfilePage() {
         ) : (
           <ul className="space-y-2">
             {categories.map((cat) => (
-              <li key={cat.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
-                <span className="h-4 w-4 rounded-full" style={{ backgroundColor: cat.color || '#4f46e5' }} />
-                <span className="flex-1 text-sm font-medium text-gray-800">{cat.name}</span>
-                <span className="text-xs text-gray-400">{cat.wordCount} words</span>
-                <button onClick={() => deleteCategory(cat.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+              <li key={cat.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
+                <span className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color || '#4f46e5' }} />
+                <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200">{cat.name}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">{cat.wordCount} word{cat.wordCount !== 1 ? 's' : ''}</span>
+                <button
+                  onClick={() => openEditCat(cat)}
+                  className="p-1 text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label="Edit category"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => deleteCategory(cat.id)}
+                  className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                  aria-label="Delete category"
+                >
                   <TrashIcon className="h-4 w-4" />
                 </button>
               </li>
@@ -178,28 +207,93 @@ export default function ProfilePage() {
         )}
       </section>
 
-      {/* Category modal */}
-      <Modal isOpen={catModal} onClose={() => setCatModal(false)} title="New Category">
-        <form onSubmit={createCategory} className="space-y-4">
-          <Input id="cat-name" label="Name *" value={catForm.name}
-            onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))} required />
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">Colour</label>
-            <div className="flex gap-2 flex-wrap">
+      {/* Category create / edit modal */}
+      <Modal
+        isOpen={catModal}
+        onClose={() => setCatModal(false)}
+        title={editCat ? '✏️ Edit Category' : '🏷️ New Category'}
+      >
+        <form onSubmit={submitCat} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Name <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Business, Science, Daily Life…"
+              value={catForm.name}
+              onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+              required
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         placeholder-gray-400 dark:placeholder-gray-500
+                         focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          {/* Colour picker */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Colour</label>
+            <div className="flex items-center gap-3 flex-wrap">
               {CATEGORY_COLORS.map((c) => (
-                <button key={c} type="button" onClick={() => setCatForm((f) => ({ ...f, color: c }))}
-                  className={`h-7 w-7 rounded-full border-2 transition-transform
-                    ${catForm.color === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCatForm((f) => ({ ...f, color: c }))}
+                  className={`h-8 w-8 rounded-full border-4 transition-all duration-150
+                    ${catForm.color === c
+                      ? 'border-gray-800 dark:border-gray-200 scale-110 shadow-md'
+                      : 'border-transparent hover:scale-105'}`}
                   style={{ backgroundColor: c }}
+                  title={c}
                 />
               ))}
+              {/* Custom hex input */}
+              <label className="flex items-center gap-1.5 cursor-pointer" title="Custom colour">
+                <input
+                  type="color"
+                  value={catForm.color}
+                  onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
+                  className="h-8 w-8 rounded-full border-0 cursor-pointer p-0 bg-transparent"
+                />
+                <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{catForm.color}</span>
+              </label>
+            </div>
+            {/* Live preview */}
+            <div
+              className="flex items-center gap-2 mt-1 px-3 py-2 rounded-xl text-sm font-medium w-fit"
+              style={{
+                backgroundColor: catForm.color ? `${catForm.color}20` : '#e0e7ff',
+                color: catForm.color || '#4f46e5',
+              }}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: catForm.color || '#4f46e5' }}
+              />
+              {catForm.name || 'Preview'}
             </div>
           </div>
-          <Input id="cat-desc" label="Description" value={catForm.description}
-            onChange={(e) => setCatForm((f) => ({ ...f, description: e.target.value }))} />
-          <div className="flex justify-end gap-3 pt-2">
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+            <input
+              type="text"
+              placeholder="Optional short description…"
+              value={catForm.description}
+              onChange={(e) => setCatForm((f) => ({ ...f, description: e.target.value }))}
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         placeholder-gray-400 dark:placeholder-gray-500
+                         focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
             <Button type="button" variant="secondary" onClick={() => setCatModal(false)}>Cancel</Button>
-            <Button type="submit" loading={catSaving}>Create</Button>
+            <Button type="submit" loading={catSaving}>
+              {editCat ? 'Save Changes' : 'Create Category'}
+            </Button>
           </div>
         </form>
       </Modal>
