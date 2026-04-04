@@ -34,10 +34,6 @@ function formatTime(s) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function formatTime(s) {
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 /**
  * Flashcard component — front shows the word, back reveals definition.
  * Grading uses 3 intuitive buttons (Again / Good / Easy) with keyboard shortcuts.
