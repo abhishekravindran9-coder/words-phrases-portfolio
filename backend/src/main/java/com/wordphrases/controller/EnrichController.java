@@ -50,7 +50,7 @@ public class EnrichController extends BaseController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(503).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(502).body(ApiResponse.error("Enrichment failed: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.error("Enrichment failed: " + e.getMessage()));
         }
     }
 }

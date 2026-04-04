@@ -33,7 +33,7 @@ public class GeminiService {
     public GeminiService() {
         this.restTemplate = new RestTemplateBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
-                .readTimeout(Duration.ofSeconds(25))
+                .readTimeout(Duration.ofSeconds(55))
                 .build();
     }
 
@@ -97,6 +97,12 @@ public class GeminiService {
             ResponseEntity<String> response = restTemplate.exchange(
                     geminiUrl + "?key=" + apiKey, HttpMethod.POST, entity, String.class);
             return parseGeminiResponse(response.getBody());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Gemini API HTTP error for {}: {} {}", label, e.getStatusCode(), e.getResponseBodyAsString());
+            if (e.getStatusCode().value() == 429) {
+                throw new RuntimeException("Gemini rate limit reached. Please wait a moment and try again.");
+            }
+            throw new RuntimeException("Gemini API error " + e.getStatusCode() + " for " + label);
         } catch (Exception e) {
             log.error("Gemini API call failed for {}: {}", label, e.getMessage());
             throw new RuntimeException("Failed to enrich " + label + " via Gemini: " + e.getMessage());
