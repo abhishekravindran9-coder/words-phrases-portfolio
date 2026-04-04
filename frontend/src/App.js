@@ -1,4 +1,7 @@
 import React from 'react';
+
+const canSignUp = () =>
+  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -32,7 +35,7 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register" element={canSignUp() ? <RegisterPage /> : <Navigate to="/login" replace />} />
 
           {/* Protected – wrapped in persistent Layout */}
           <Route element={<ProtectedRoute />}>

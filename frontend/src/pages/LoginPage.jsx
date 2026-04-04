@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+
+const canSignUp = () =>
+  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/common/Input';
@@ -83,12 +86,14 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-primary-600 font-semibold hover:underline">
-              Create one
-            </Link>
-          </p>
+          {canSignUp() && (
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-primary-600 font-semibold hover:underline">
+                Create one
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>
