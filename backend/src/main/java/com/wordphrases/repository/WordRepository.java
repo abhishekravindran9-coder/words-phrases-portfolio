@@ -1,0 +1,55 @@
+package com.wordphrases.repository;
+
+import com.wordphrases.model.User;
+import com.wordphrases.model.Word;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Data access layer for {@link Word} entities.
+ */
+@Repository
+public interface WordRepository extends JpaRepository<Word, Long> {
+
+    Page<Word> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+
+    Optional<Word> findByIdAndUser(Long id, User user);
+
+    List<Word> findByUserAndCategoryId(User user, Long categoryId);
+
+    /** Words due for review today or overdue. */
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today) AND w.mastered = false ORDER BY w.nextReviewDate ASC NULLS FIRST")
+    List<Word> findDueForReview(@Param("user") User user, @Param("today") LocalDate today);
+
+    long countByUser(User user);
+
+    long countByUserAndMastered(User user, Boolean mastered);
+
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today) AND w.mastered = false")
+    long countDueForReview(@Param("user") User user, @Param("today") LocalDate today);
+
+    /** Full-text search across word, definition and example sentence. */
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND (LOWER(w.word) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Word> searchByUser(@Param("user") User user, @Param("query") String query, Pageable pageable);
+
+    /** Pick one random word for the daily highlight (simple random approach). */
+    @Query(value = "SELECT * FROM words WHERE user_id = :userId ORDER BY RANDOM() LIMIT 1", nativeQuery = true)
+    Optional<Word> findRandomByUser(@Param("userId") Long userId);
+
+    /** Top N hardest words: lowest ease factor, not yet mastered. */
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false ORDER BY w.easeFactor ASC, w.repetitions ASC")
+    List<Word> findWeakestWords(@Param("user") User user, Pageable pageable);
+
+    /** Words overdue by more than 1 day. */
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.nextReviewDate < :yesterday AND w.mastered = false")
+    long countOverdue(@Param("user") User user, @Param("yesterday") LocalDate yesterday);
+}

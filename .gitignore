@@ -1,0 +1,13 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Secrets — never commit these
+backend/src/main/resources/application-prod.properties

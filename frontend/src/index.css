@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer components {
+  /* Flashcard perspective */
+  .perspective {
+    perspective: 1200px;
+  }
+
+  .card-face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track { @apply bg-gray-100; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+}
