@@ -52,21 +52,40 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     Optional<Word> findRandomByUser(@Param("userId") Long userId);
 
     /**
-     * Universal filtered + sorted query for the words browse page.
-     * Each optional parameter short-circuits via the {@code IS NULL} check so a
-     * single JPQL method covers every combination of active filters.
+     * Filtered + sorted browse query — no text search.
+     * Called when no search query is present so LOWER() is never
+     * applied to an untyped null parameter (avoids lower(bytea) on PostgreSQL).
      */
     @Query("""
         SELECT w FROM Word w
         WHERE w.user = :user
-          AND (:entryType IS NULL OR w.entryType = :entryType)
+          AND (:entryType  IS NULL OR w.entryType   = :entryType)
           AND (:categoryId IS NULL OR w.category.id = :categoryId)
-          AND (:mastered  IS NULL OR w.mastered = :mastered)
-          AND (:query IS NULL
-               OR LOWER(w.word)       LIKE LOWER(CONCAT('%', :query, '%'))
-               OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))
+          AND (:mastered   IS NULL OR w.mastered    = :mastered)
         """)
     Page<Word> findWithFilters(
+        @Param("user")       User    user,
+        @Param("entryType")  String  entryType,
+        @Param("categoryId") Long    categoryId,
+        @Param("mastered")   Boolean mastered,
+        Pageable pageable
+    );
+
+    /**
+     * Filtered + sorted browse query WITH text search.
+     * Only called when query is non-null, so LOWER() always receives a
+     * properly typed varchar — never a null bytea.
+     */
+    @Query("""
+        SELECT w FROM Word w
+        WHERE w.user = :user
+          AND (:entryType  IS NULL OR w.entryType   = :entryType)
+          AND (:categoryId IS NULL OR w.category.id = :categoryId)
+          AND (:mastered   IS NULL OR w.mastered    = :mastered)
+          AND (LOWER(w.word)       LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))
+        """)
+    Page<Word> findWithFiltersAndSearch(
         @Param("user")       User    user,
         @Param("query")      String  query,
         @Param("entryType")  String  entryType,

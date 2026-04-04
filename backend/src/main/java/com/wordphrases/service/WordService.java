@@ -37,7 +37,12 @@ public class WordService {
         User user = userService.getUserById(userId);
         String q    = (query     != null && !query.isBlank())     ? query.trim().toLowerCase() : null;
         String type = (entryType != null && !entryType.isBlank()) ? entryType.toUpperCase()    : null;
-        Page<Word> page = wordRepository.findWithFilters(user, q, type, categoryId, mastered, pageable);
+        Page<Word> page;
+        if (q != null) {
+            page = wordRepository.findWithFiltersAndSearch(user, q, type, categoryId, mastered, pageable);
+        } else {
+            page = wordRepository.findWithFilters(user, type, categoryId, mastered, pageable);
+        }
         return page.map(this::toWordResponse);
     }
 
