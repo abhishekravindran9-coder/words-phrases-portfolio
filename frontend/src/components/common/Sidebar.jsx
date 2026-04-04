@@ -44,14 +44,15 @@ export default function Sidebar({ isOpen, onClose }) {
           fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl flex flex-col
           transform transition-transform duration-300 ease-in-out
           lg:relative lg:translate-x-0 lg:shadow-none lg:border-r lg:border-gray-200
+          dark:bg-gray-800 dark:border-gray-700
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
         {/* Brand */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700">
           <span className="text-xl font-bold text-primary-600">📚 W&amp;P</span>
           <button
-            className="lg:hidden text-gray-400 hover:text-gray-600"
+            className="lg:hidden text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             onClick={onClose}
           >
             <XMarkIcon className="h-5 w-5" />
@@ -59,11 +60,11 @@ export default function Sidebar({ isOpen, onClose }) {
         </div>
 
         {/* User badge */}
-        <div className="px-6 py-4 border-b border-gray-100">
-          <p className="text-sm font-semibold text-gray-800 truncate">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
             {user?.displayName || user?.username}
           </p>
-          <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{user?.email}</p>
         </div>
 
         {/* Navigation */}
@@ -76,8 +77,8 @@ export default function Sidebar({ isOpen, onClose }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                  ${isActive
-                   ? 'bg-primary-50 text-primary-700'
-                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
+                   ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100'}`
               }
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -90,7 +91,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="px-3 pb-4">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

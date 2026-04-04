@@ -13,7 +13,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
   if (compact) {
     return (
       <div
-        className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3
+        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm px-4 py-3
                    hover:shadow-md transition-shadow animate-fade-in cursor-pointer
                    flex items-center gap-3"
         onClick={() => onView && onView(word)}
@@ -25,7 +25,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
         </span>
 
         {/* Word */}
-        <span className="font-bold text-gray-900 text-sm flex-shrink-0">{word.word}</span>
+        <span className="font-bold text-gray-900 dark:text-gray-100 text-sm flex-shrink-0">{word.word}</span>
 
         {word.mastered && (
           <CheckBadgeIcon className="h-4 w-4 text-green-500 flex-shrink-0" title="Mastered" />
@@ -46,7 +46,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
 
         {/* Definition preview */}
         {word.definition && (
-          <span className="text-xs text-gray-400 truncate flex-1">
+          <span className="text-xs text-gray-400 dark:text-gray-500 truncate flex-1">
             {truncate(word.definition, 80)}
           </span>
         )}
@@ -61,7 +61,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           {onView && (
             <button
               onClick={(e) => { e.stopPropagation(); onView(word); }}
-              className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
               aria-label="View"
             >
               <EyeIcon className="h-3.5 w-3.5" />
@@ -69,14 +69,14 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(word); }}
-            className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
             aria-label="Edit"
           >
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(word.id); }}
-            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
             aria-label="Delete"
           >
             <TrashIcon className="h-3.5 w-3.5" />
@@ -94,7 +94,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
 
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow animate-fade-in cursor-pointer"
+      className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 hover:shadow-md transition-shadow animate-fade-in cursor-pointer"
       onClick={() => onView && onView(word)}
     >
       <div className="flex items-start justify-between gap-3">
@@ -107,7 +107,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
                 : 'bg-blue-100 text-blue-700'}`}>
               {isPhrase ? '💬 Phrase' : '📖 Word'}
             </span>
-            <h3 className="text-lg font-bold text-gray-900">{word.word}</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{word.word}</h3>
             {word.mastered && (
               <CheckBadgeIcon className="h-5 w-5 text-green-500 flex-shrink-0" title="Mastered" />
             )}
@@ -126,7 +126,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           )}
 
           {word.definition && (
-            <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               {truncate(word.definition, 120)}
             </p>
           )}
@@ -148,7 +148,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           {onView && (
             <button
               onClick={(e) => { e.stopPropagation(); onView(word); }}
-              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
               aria-label="View"
             >
               <EyeIcon className="h-4 w-4" />
@@ -156,14 +156,14 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(word); }}
-            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
             aria-label="Edit"
           >
             <PencilIcon className="h-4 w-4" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(word.id); }}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
             aria-label="Delete"
           >
             <TrashIcon className="h-4 w-4" />
@@ -172,10 +172,10 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
       </div>
 
       {/* SM-2 metadata footer */}
-      <div className="mt-4 pt-3 border-t border-gray-50 flex items-center gap-4 text-xs text-gray-400">
-        <span>Next review: <strong className="text-gray-600">{word.nextReviewDate || '—'}</strong></span>
-        <span>Interval: <strong className="text-gray-600">{word.intervalDays}d</strong></span>
-        <span>Reps: <strong className="text-gray-600">{word.repetitions}</strong></span>
+      <div className="mt-4 pt-3 border-t border-gray-50 dark:border-gray-700 flex items-center gap-4 text-xs text-gray-400">
+        <span>Next review: <strong className="text-gray-600 dark:text-gray-400">{word.nextReviewDate || '—'}</strong></span>
+        <span>Interval: <strong className="text-gray-600 dark:text-gray-400">{word.intervalDays}d</strong></span>
+        <span>Reps: <strong className="text-gray-600 dark:text-gray-400">{word.repetitions}</strong></span>
       </div>
     </div>
   );
