@@ -2,6 +2,7 @@ package com.wordphrases.service;
 
 import com.wordphrases.dto.request.WordRequest;
 import com.wordphrases.dto.response.WordResponse;
+import com.wordphrases.dto.response.WordStatsResponse;
 import com.wordphrases.exception.ResourceNotFoundException;
 import com.wordphrases.model.Category;
 import com.wordphrases.model.User;
@@ -30,21 +31,25 @@ public class WordService {
     private final UserService userService;
 
     @Transactional(readOnly = true)
-    public Page<WordResponse> getWordsForUser(Long userId, String query, String entryType, Pageable pageable) {
+    public Page<WordResponse> getWordsForUser(
+            Long userId, String query, String entryType,
+            Long categoryId, Boolean mastered, Pageable pageable) {
         User user = userService.getUserById(userId);
-        boolean hasQuery = query != null && !query.isBlank();
-        boolean hasType  = entryType != null && !entryType.isBlank();
-        Page<Word> page;
-        if (hasQuery && hasType) {
-            page = wordRepository.searchByUserAndEntryType(user, query.trim(), entryType.toUpperCase(), pageable);
-        } else if (hasQuery) {
-            page = wordRepository.searchByUser(user, query.trim(), pageable);
-        } else if (hasType) {
-            page = wordRepository.findByUserAndEntryTypeOrderByCreatedAtDesc(user, entryType.toUpperCase(), pageable);
-        } else {
-            page = wordRepository.findByUserOrderByCreatedAtDesc(user, pageable);
-        }
+        String q    = (query     != null && !query.isBlank())     ? query.trim().toLowerCase() : null;
+        String type = (entryType != null && !entryType.isBlank()) ? entryType.toUpperCase()    : null;
+        Page<Word> page = wordRepository.findWithFilters(user, q, type, categoryId, mastered, pageable);
         return page.map(this::toWordResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public WordStatsResponse getStatsForUser(Long userId) {
+        User user = userService.getUserById(userId);
+        return WordStatsResponse.builder()
+                .total(wordRepository.countByUser(user))
+                .mastered(wordRepository.countByUserAndMastered(user, true))
+                .words(wordRepository.countByUserAndEntryType(user, "WORD"))
+                .phrases(wordRepository.countByUserAndEntryType(user, "PHRASE"))
+                .build();
     }
 
     @Transactional(readOnly = true)

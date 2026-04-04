@@ -51,6 +51,30 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     @Query(value = "SELECT * FROM words WHERE user_id = :userId ORDER BY RANDOM() LIMIT 1", nativeQuery = true)
     Optional<Word> findRandomByUser(@Param("userId") Long userId);
 
+    /**
+     * Universal filtered + sorted query for the words browse page.
+     * Each optional parameter short-circuits via the {@code IS NULL} check so a
+     * single JPQL method covers every combination of active filters.
+     */
+    @Query("""
+        SELECT w FROM Word w
+        WHERE w.user = :user
+          AND (:entryType IS NULL OR w.entryType = :entryType)
+          AND (:categoryId IS NULL OR w.category.id = :categoryId)
+          AND (:mastered  IS NULL OR w.mastered = :mastered)
+          AND (:query IS NULL
+               OR LOWER(w.word)       LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))
+        """)
+    Page<Word> findWithFilters(
+        @Param("user")       User    user,
+        @Param("query")      String  query,
+        @Param("entryType")  String  entryType,
+        @Param("categoryId") Long    categoryId,
+        @Param("mastered")   Boolean mastered,
+        Pageable pageable
+    );
+
     /** Top N hardest words: lowest ease factor, not yet mastered. */
     @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false ORDER BY w.easeFactor ASC, w.repetitions ASC")
     List<Word> findWeakestWords(@Param("user") User user, Pageable pageable);

@@ -4,15 +4,93 @@ import { PencilIcon, TrashIcon, CheckBadgeIcon, EyeIcon } from '@heroicons/react
 
 /**
  * Card component representing a single vocabulary word or phrase.
+ * `compact` – renders a slim single-row list item (for List view mode).
  */
-export default function WordCard({ word, onEdit, onDelete, onView }) {
+export default function WordCard({ word, onEdit, onDelete, onView, compact = false }) {
   const isPhrase = word.entryType === 'PHRASE';
 
-  // Example sentences are stored joined by double newline
+  // ── Compact list-row variant ──────────────────────────────────────────────
+  if (compact) {
+    return (
+      <div
+        className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3
+                   hover:shadow-md transition-shadow animate-fade-in cursor-pointer
+                   flex items-center gap-3"
+        onClick={() => onView && onView(word)}
+      >
+        {/* Type badge */}
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide flex-shrink-0
+          ${isPhrase ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+          {isPhrase ? '💬' : '📖'}
+        </span>
+
+        {/* Word */}
+        <span className="font-bold text-gray-900 text-sm flex-shrink-0">{word.word}</span>
+
+        {word.mastered && (
+          <CheckBadgeIcon className="h-4 w-4 text-green-500 flex-shrink-0" title="Mastered" />
+        )}
+
+        {/* Category pill */}
+        {word.categoryName && (
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"
+            style={{
+              backgroundColor: word.categoryColor ? `${word.categoryColor}20` : '#e0e7ff',
+              color: word.categoryColor || '#4f46e5',
+            }}
+          >
+            {word.categoryName}
+          </span>
+        )}
+
+        {/* Definition preview */}
+        {word.definition && (
+          <span className="text-xs text-gray-400 truncate flex-1">
+            {truncate(word.definition, 80)}
+          </span>
+        )}
+
+        {/* Next review */}
+        <span className="text-xs text-gray-300 flex-shrink-0 hidden sm:block">
+          {word.nextReviewDate || '—'}
+        </span>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 flex-shrink-0 ml-auto">
+          {onView && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onView(word); }}
+              className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              aria-label="View"
+            >
+              <EyeIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(word); }}
+            className="p-1.5 text-gray-300 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            aria-label="Edit"
+          >
+            <PencilIcon className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(word.id); }}
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label="Delete"
+          >
+            <TrashIcon className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Full card variant (default / grid view) ───────────────────────────────
   const sentences = (word.exampleSentence || '')
     .split('\n\n')
     .filter(Boolean)
-    .slice(0, 3); // show at most 3 on the card
+    .slice(0, 3);
 
   return (
     <div
@@ -102,3 +180,4 @@ export default function WordCard({ word, onEdit, onDelete, onView }) {
     </div>
   );
 }
+
