@@ -1,11 +1,11 @@
 import React from 'react';
 import { truncate } from '../../utils/helpers';
-import { PencilIcon, TrashIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, CheckBadgeIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 /**
  * Card component representing a single vocabulary word or phrase.
  */
-export default function WordCard({ word, onEdit, onDelete }) {
+export default function WordCard({ word, onEdit, onDelete, onView }) {
   const isPhrase = word.entryType === 'PHRASE';
 
   // Example sentences are stored joined by double newline
@@ -15,7 +15,10 @@ export default function WordCard({ word, onEdit, onDelete }) {
     .slice(0, 3); // show at most 3 on the card
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow animate-fade-in">
+    <div
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow animate-fade-in cursor-pointer"
+      onClick={() => onView && onView(word)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -64,15 +67,24 @@ export default function WordCard({ word, onEdit, onDelete }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {onView && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onView(word); }}
+              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              aria-label="View"
+            >
+              <EyeIcon className="h-4 w-4" />
+            </button>
+          )}
           <button
-            onClick={() => onEdit(word)}
+            onClick={(e) => { e.stopPropagation(); onEdit(word); }}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
             aria-label="Edit"
           >
             <PencilIcon className="h-4 w-4" />
           </button>
           <button
-            onClick={() => onDelete(word.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(word.id); }}
             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             aria-label="Delete"
           >

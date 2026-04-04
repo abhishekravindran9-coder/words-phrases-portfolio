@@ -28,11 +28,12 @@ public class WordController extends BaseController {
     @GetMapping
     public ResponseEntity<ApiResponse<Page<WordResponse>>> getWords(
             @RequestParam(required = false) String query,
+            @RequestParam(required = false) String entryType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<WordResponse> words = wordService.getWordsForUser(getCurrentUserId(), query, pageable);
+        Page<WordResponse> words = wordService.getWordsForUser(getCurrentUserId(), query, entryType, pageable);
         return ResponseEntity.ok(ApiResponse.ok(words));
     }
 

@@ -22,6 +22,12 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     Page<Word> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
+    Page<Word> findByUserAndEntryTypeOrderByCreatedAtDesc(User user, String entryType, Pageable pageable);
+
+    /** Full-text search scoped to an entry type. */
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.entryType = :entryType AND (LOWER(w.word) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Word> searchByUserAndEntryType(@Param("user") User user, @Param("query") String query, @Param("entryType") String entryType, Pageable pageable);
+
     Optional<Word> findByIdAndUser(Long id, User user);
 
     List<Word> findByUserAndCategoryId(User user, Long categoryId);

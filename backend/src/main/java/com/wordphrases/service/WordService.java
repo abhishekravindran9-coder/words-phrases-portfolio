@@ -30,11 +30,20 @@ public class WordService {
     private final UserService userService;
 
     @Transactional(readOnly = true)
-    public Page<WordResponse> getWordsForUser(Long userId, String query, Pageable pageable) {
+    public Page<WordResponse> getWordsForUser(Long userId, String query, String entryType, Pageable pageable) {
         User user = userService.getUserById(userId);
-        Page<Word> page = (query != null && !query.isBlank())
-                ? wordRepository.searchByUser(user, query.trim(), pageable)
-                : wordRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+        boolean hasQuery = query != null && !query.isBlank();
+        boolean hasType  = entryType != null && !entryType.isBlank();
+        Page<Word> page;
+        if (hasQuery && hasType) {
+            page = wordRepository.searchByUserAndEntryType(user, query.trim(), entryType.toUpperCase(), pageable);
+        } else if (hasQuery) {
+            page = wordRepository.searchByUser(user, query.trim(), pageable);
+        } else if (hasType) {
+            page = wordRepository.findByUserAndEntryTypeOrderByCreatedAtDesc(user, entryType.toUpperCase(), pageable);
+        } else {
+            page = wordRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+        }
         return page.map(this::toWordResponse);
     }
 

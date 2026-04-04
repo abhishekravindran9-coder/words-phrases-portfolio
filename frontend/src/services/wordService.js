@@ -1,8 +1,15 @@
 import api from './api';
 
 export const wordService = {
-  async getWords({ page = 0, size = 20, query = '' } = {}) {
-    const res = await api.get('/words', { params: { page, size, query: query || undefined } });
+  async getWords({ page = 0, size = 20, query = '', entryType = '' } = {}) {
+    const res = await api.get('/words', {
+      params: {
+        page,
+        size,
+        query: query || undefined,
+        entryType: entryType || undefined,
+      },
+    });
     return res.data.data;
   },
 
