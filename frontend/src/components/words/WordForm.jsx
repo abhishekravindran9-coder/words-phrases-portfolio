@@ -25,6 +25,7 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
 
   // Auto-fill state
   const [fetching, setFetching] = useState(false);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
 
   // Inline new-category state
   const [showNewCat, setShowNewCat]   = useState(false);
@@ -55,7 +56,7 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
   const removeSentence = (i)    => setSentences((s) => s.filter((_, j) => j !== i));
 
   const handleAutoFill = async () => {
-    if (!form.word.trim()) return;
+    if (!form.word.trim() || rateLimitSeconds > 0) return;
     setFetching(true);
     try {
       const result = form.entryType === 'WORD'
@@ -70,7 +71,19 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
 
       toast.success('Definition loaded!');
     } catch (err) {
-      toast.error(err.message || 'Could not fetch definition');
+      if (err.isRateLimit) {
+        // Start 60-second countdown
+        setRateLimitSeconds(60);
+        const interval = setInterval(() => {
+          setRateLimitSeconds((s) => {
+            if (s <= 1) { clearInterval(interval); return 0; }
+            return s - 1;
+          });
+        }, 1000);
+        toast.error('Gemini rate limit hit. Auto-fill will unlock in 60s.');
+      } else {
+        toast.error(err.message || 'Could not fetch definition');
+      }
     } finally {
       setFetching(false);
     }
@@ -142,11 +155,14 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
           <button
             type="button"
             onClick={handleAutoFill}
-            disabled={!form.word.trim() || fetching}
-            title={`Auto-fill from ${form.entryType === 'WORD' ? 'dictionary' : 'Gemini AI'}`}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border
-                       border-primary-300 text-primary-700 bg-primary-50 hover:bg-primary-100
-                       disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap flex-shrink-0"
+            disabled={!form.word.trim() || fetching || rateLimitSeconds > 0}
+            title={rateLimitSeconds > 0 ? `Rate limited — available in ${rateLimitSeconds}s` : 'Auto-fill from Gemini AI'}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border
+                       transition-colors whitespace-nowrap flex-shrink-0
+                       ${rateLimitSeconds > 0
+                         ? 'border-orange-300 text-orange-700 bg-orange-50 cursor-not-allowed'
+                         : 'border-primary-300 text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-40 disabled:cursor-not-allowed'
+                       }`}
           >
             {fetching ? (
               <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -156,7 +172,7 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
             ) : (
               <SparklesIcon className="h-4 w-4" />
             )}
-            {fetching ? 'Fetching…' : 'Auto-fill'}
+            {fetching ? 'Fetching…' : rateLimitSeconds > 0 ? `Wait ${rateLimitSeconds}s` : 'Auto-fill'}
           </button>
         </div>
       </div>
