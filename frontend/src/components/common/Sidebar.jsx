@@ -4,15 +4,17 @@ import { useAuth } from '../../context/AuthContext';
 import {
   HomeIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
   ChartBarIcon, PencilSquareIcon, XMarkIcon, AcademicCapIcon,
+  BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
 
 const LINKS = [
-  { to: '/dashboard', label: 'Dashboard',    Icon: HomeIcon },
-  { to: '/words',     label: 'My Words',     Icon: BookOpenIcon },
-  { to: '/review',    label: 'Review',       Icon: ClipboardDocumentCheckIcon },
-  { to: '/quiz',      label: 'Quiz',         Icon: AcademicCapIcon },
-  { to: '/progress',  label: 'Progress',     Icon: ChartBarIcon },
-  { to: '/journal',   label: 'Journal',      Icon: PencilSquareIcon },
+  { to: '/dashboard',        label: 'Dashboard',         Icon: HomeIcon },
+  { to: '/words',            label: 'My Words',          Icon: BookOpenIcon },
+  { to: '/review',           label: 'Review',            Icon: ClipboardDocumentCheckIcon },
+  { to: '/quiz',             label: 'Quiz',              Icon: AcademicCapIcon },
+  { to: '/progress',         label: 'Progress',          Icon: ChartBarIcon },
+  { to: '/journal',          label: 'Journal',           Icon: PencilSquareIcon },
+  { to: '/property-tracker', label: 'Property Tracker',  Icon: BuildingOffice2Icon },
 ];
 
 /**

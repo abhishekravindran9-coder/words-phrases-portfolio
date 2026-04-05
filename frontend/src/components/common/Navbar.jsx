@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Bars3Icon, UserCircleIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useFontSize } from '../../context/FontSizeContext';
 
 /**
  * Top navigation bar – shows hamburger menu on mobile, user actions on the right.
@@ -10,6 +11,7 @@ import { useTheme } from '../../context/ThemeContext';
 export default function Navbar({ onMenuClick }) {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { fontSize, setFontSize } = useFontSize();
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between
@@ -29,6 +31,27 @@ export default function Navbar({ onMenuClick }) {
 
       {/* Right: user actions */}
       <div className="flex items-center gap-2 ml-auto">
+        {/* Font size pill */}
+        <div
+          className="flex items-center rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+          title="Adjust text size"
+        >
+          {[{ key: 'sm', size: '10px' }, { key: 'md', size: '13px' }, { key: 'lg', size: '17px' }].map(({ key, size }) => (
+            <button
+              key={key}
+              onClick={() => setFontSize(key)}
+              aria-label={`Text size ${key}`}
+              className={`px-2 py-1.5 transition-colors ${
+                fontSize === key
+                  ? 'bg-primary-100 text-primary-700 dark:bg-gray-700 dark:text-primary-400'
+                  : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span style={{ fontSize: size, fontWeight: 800, lineHeight: 1, display: 'block' }}>A</span>
+            </button>
+          ))}
+        </div>
+
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}

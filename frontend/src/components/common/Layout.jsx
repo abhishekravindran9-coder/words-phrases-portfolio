@@ -18,7 +18,7 @@ export default function Layout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 animate-fade-in dark:bg-gray-900">
+        <main className="flex-1 overflow-y-auto p-3 md:p-6 lg:p-8 animate-fade-in dark:bg-gray-900">
           <Outlet />
         </main>
       </div>

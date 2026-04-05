@@ -169,7 +169,7 @@ export default function WordsPage() {
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="sm:max-w-5xl sm:mx-auto space-y-4">
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

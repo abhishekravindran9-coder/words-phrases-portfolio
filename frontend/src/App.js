@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { FontSizeProvider } from './context/FontSizeContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 
@@ -10,18 +11,21 @@ import Layout from './components/common/Layout';
 import LoginPage      from './pages/LoginPage';
 import RegisterPage   from './pages/RegisterPage';
 import DashboardPage  from './pages/DashboardPage';
-import WordsPage      from './pages/WordsPage';
-import ReviewPage     from './pages/ReviewPage';
-import ProgressPage   from './pages/ProgressPage';
-import JournalPage    from './pages/JournalPage';
-import ProfilePage    from './pages/ProfilePage';
-import QuizPage       from './pages/QuizPage';
+import WordsPage             from './pages/WordsPage';
+import ReviewPage            from './pages/ReviewPage';
+import ProgressPage          from './pages/ProgressPage';
+import JournalPage           from './pages/JournalPage';
+import ProfilePage           from './pages/ProfilePage';
+import QuizPage              from './pages/QuizPage';
+import PropertyTrackerPage   from './pages/PropertyTrackerPage';
+import PropertyDetailPage    from './pages/PropertyDetailPage';
 
 const canSignUp = () =>
   document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 
 export default function App() {
   return (
+    <FontSizeProvider>
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
@@ -45,8 +49,10 @@ export default function App() {
               <Route path="/review"    element={<ReviewPage />} />
               <Route path="/progress"  element={<ProgressPage />} />
               <Route path="/quiz"      element={<QuizPage />} />
-              <Route path="/journal"   element={<JournalPage />} />
-              <Route path="/profile"   element={<ProfilePage />} />
+              <Route path="/journal"              element={<JournalPage />} />
+              <Route path="/profile"              element={<ProfilePage />} />
+              <Route path="/property-tracker"     element={<PropertyTrackerPage />} />
+              <Route path="/property-tracker/:id" element={<PropertyDetailPage />} />
             </Route>
           </Route>
 
@@ -57,5 +63,6 @@ export default function App() {
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
+    </FontSizeProvider>
   );
 }
