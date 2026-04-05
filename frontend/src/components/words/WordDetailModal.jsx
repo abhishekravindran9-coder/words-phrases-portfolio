@@ -1,14 +1,17 @@
 import React, { useEffect } from 'react';
 import {
   XMarkIcon, CheckBadgeIcon, CalendarDaysIcon,
-  ArrowPathIcon, BoltIcon, PencilIcon,
+  ArrowPathIcon, BoltIcon, PencilIcon, SpeakerWaveIcon,
 } from '@heroicons/react/24/outline';
+import { useSpeech } from '../../hooks/useSpeech';
 
 /**
  * Full-detail slide-over for a single word / phrase.
  * Slides in from the right on desktop; full-screen sheet on mobile.
  */
 export default function WordDetailModal({ word, onClose, onEdit }) {
+  const { speak, speaking, supported: speechSupported } = useSpeech();
+
   // Close on Escape key
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -86,6 +89,20 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
+            {speechSupported && (
+              <button
+                onClick={() => speak(word.word)}
+                className={`p-2 rounded-lg transition-colors ${
+                  speaking
+                    ? 'text-primary-600 bg-primary-50 dark:bg-gray-700'
+                    : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700'
+                }`}
+                aria-label="Pronounce"
+                title="Pronounce"
+              >
+                <SpeakerWaveIcon className="h-5 w-5" />
+              </button>
+            )}
             {onEdit && (
               <button
                 onClick={() => { onClose(); onEdit(word); }}

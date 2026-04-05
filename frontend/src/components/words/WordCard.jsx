@@ -1,6 +1,7 @@
 import React from 'react';
 import { truncate } from '../../utils/helpers';
-import { PencilIcon, TrashIcon, CheckBadgeIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, CheckBadgeIcon, EyeIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { useSpeech } from '../../hooks/useSpeech';
 
 /**
  * Card component representing a single vocabulary word or phrase.
@@ -8,6 +9,7 @@ import { PencilIcon, TrashIcon, CheckBadgeIcon, EyeIcon } from '@heroicons/react
  */
 export default function WordCard({ word, onEdit, onDelete, onView, compact = false }) {
   const isPhrase = word.entryType === 'PHRASE';
+  const { speak, speaking, supported: speechSupported } = useSpeech();
 
   // ── Compact list-row variant ──────────────────────────────────────────────
   if (compact) {
@@ -58,6 +60,20 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
 
         {/* Actions */}
         <div className="flex items-center gap-0.5 flex-shrink-0 ml-auto">
+          {speechSupported && (
+            <button
+              onClick={(e) => { e.stopPropagation(); speak(word.word); }}
+              className={`p-1.5 rounded-lg transition-colors ${
+                speaking
+                  ? 'text-primary-600 bg-primary-50 dark:bg-gray-700'
+                  : 'text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700'
+              }`}
+              aria-label="Pronounce"
+              title="Pronounce"
+            >
+              <SpeakerWaveIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
           {onView && (
             <button
               onClick={(e) => { e.stopPropagation(); onView(word); }}
@@ -145,6 +161,20 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {speechSupported && (
+            <button
+              onClick={(e) => { e.stopPropagation(); speak(word.word); }}
+              className={`p-1.5 rounded-lg transition-colors ${
+                speaking
+                  ? 'text-primary-600 bg-primary-50 dark:bg-gray-700'
+                  : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700'
+              }`}
+              aria-label="Pronounce"
+              title="Pronounce"
+            >
+              <SpeakerWaveIcon className="h-4 w-4" />
+            </button>
+          )}
           {onView && (
             <button
               onClick={(e) => { e.stopPropagation(); onView(word); }}

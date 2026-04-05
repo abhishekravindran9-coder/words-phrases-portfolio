@@ -1,7 +1,4 @@
 import React from 'react';
-
-const canSignUp = () =>
-  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -19,6 +16,9 @@ import ProgressPage   from './pages/ProgressPage';
 import JournalPage    from './pages/JournalPage';
 import ProfilePage    from './pages/ProfilePage';
 import QuizPage       from './pages/QuizPage';
+
+const canSignUp = () =>
+  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 
 export default function App() {
   return (

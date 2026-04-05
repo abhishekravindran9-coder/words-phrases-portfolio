@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-
-const canSignUp = () =>
-  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import toast from 'react-hot-toast';
+
+const canSignUp = () =>
+  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
 
 /**
  * Login page – accepts username/email + password, authenticates via the API.
