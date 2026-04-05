@@ -164,7 +164,7 @@ export default function DashboardPage() {
                   <HomeModernIcon className="h-5 w-5 text-primary-500" />
                   Property Portfolio
                 </h2>
-                <Link to="/property" className="text-sm text-primary-600 hover:underline font-medium">
+                <Link to="/property-tracker" className="text-sm text-primary-600 hover:underline font-medium">
                   View All →
                 </Link>
               </div>
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                   const loanPct = Math.min(100, Math.round(p.loanPercentRepaid || 0));
 
                   return (
-                    <Link to="/property" key={p.id}>
+                    <Link to="/property-tracker" key={p.id}>
                       <div className={`border border-gray-100 border-l-4 ${borderCls} rounded-xl p-4 hover:shadow-md transition-shadow h-full bg-gray-50`}>
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div className="min-w-0">
