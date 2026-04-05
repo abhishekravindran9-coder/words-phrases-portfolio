@@ -1,7 +1,6 @@
 package com.wordphrases.controller;
 
 import com.wordphrases.dto.request.LoginRequest;
-import com.wordphrases.dto.request.RegisterRequest;
 import com.wordphrases.dto.response.ApiResponse;
 import com.wordphrases.dto.response.AuthResponse;
 import com.wordphrases.service.AuthService;
@@ -23,10 +22,9 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("User registered successfully", response));
+    public ResponseEntity<ApiResponse<Void>> register() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("Registration is currently closed."));
     }
 
     @PostMapping("/login")

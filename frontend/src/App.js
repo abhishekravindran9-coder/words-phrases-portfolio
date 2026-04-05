@@ -20,8 +20,7 @@ import QuizPage              from './pages/QuizPage';
 import PropertyTrackerPage   from './pages/PropertyTrackerPage';
 import PropertyDetailPage    from './pages/PropertyDetailPage';
 
-const canSignUp = () =>
-  document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
+const canSignUp = () => false;
 
 export default function App() {
   return (
