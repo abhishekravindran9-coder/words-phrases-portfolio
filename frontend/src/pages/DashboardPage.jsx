@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { progressService } from '../services/progressService';
+import { propertyService } from '../services/propertyService';
 import StatsCard from '../components/dashboard/StatsCard';
 import UpcomingReviews from '../components/dashboard/UpcomingReviews';
 import DailyHighlight from '../components/dashboard/DailyHighlight';
@@ -12,6 +13,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
   BookOpenIcon, CheckBadgeIcon, ClipboardDocumentCheckIcon,
   CalendarDaysIcon, ExclamationTriangleIcon, AcademicCapIcon,
+  HomeModernIcon,
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import Button from '../components/common/Button';
@@ -21,6 +23,7 @@ export default function DashboardPage() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,  setError]    = useState(null);
+  const [props,  setProps]    = useState([]);
 
   useEffect(() => {
     progressService.getDashboard()
@@ -29,11 +32,22 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    propertyService.getAll().then(setProps).catch(() => {});
+  }, []);
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning';
     if (h < 18) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const fmtCr = (v) => {
+    if (!v && v !== 0) return '—';
+    if (v >= 1e7) return `₹${(v / 1e7).toFixed(2)}Cr`;
+    if (v >= 1e5) return `₹${(v / 1e5).toFixed(1)}L`;
+    return `₹${v.toLocaleString('en-IN')}`;
   };
 
   const masteryPct = data?.totalWords
@@ -123,7 +137,7 @@ export default function DashboardPage() {
       {/* ── Empty / onboarding state ── */}
       {(data?.totalWords ?? 0) === 0 ? (
         <div className="bg-gradient-to-br from-primary-50 to-indigo-50 border border-primary-100 rounded-2xl p-8 text-center">
-          <p className="text-5xl mb-4">📚</p>
+          <p className="text-5xl mb-4">&#x1F511;</p>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome! Let's get started.</h2>
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
             Add your first word or phrase to begin tracking your vocabulary and building a daily learning habit.
@@ -141,6 +155,118 @@ export default function DashboardPage() {
             <StatsCard label="Due Today"    value={data?.dueToday}      icon={ClipboardDocumentCheckIcon} color="yellow" />
             <StatsCard label="This Week"    value={weekReviews}          icon={CalendarDaysIcon}            color="primary" />
           </div>
+
+          {/* ── Property Portfolio (inline) ── */}
+          {props.length > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <HomeModernIcon className="h-5 w-5 text-primary-500" />
+                  Property Portfolio
+                </h2>
+                <Link to="/property" className="text-sm text-primary-600 hover:underline font-medium">
+                  View All →
+                </Link>
+              </div>
+
+              {/* Aggregate strip */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-xl font-extrabold text-gray-900">{props.length}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Properties</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-extrabold text-gray-900 truncate">
+                    {fmtCr(props.reduce((s, p) => s + (p.totalCost || 0), 0))}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Total Investment</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-extrabold text-gray-900 truncate">
+                    {fmtCr(props.reduce((s, p) => s + (p.loanOutstanding || 0), 0))}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Loan Outstanding</p>
+                </div>
+              </div>
+
+              {/* Per-property snapshot cards */}
+              <div className={`grid gap-3 grid-cols-1 ${props.length >= 2 ? 'sm:grid-cols-2' : ''} ${props.length >= 3 ? 'lg:grid-cols-3' : ''}`}>
+                {props.map((p) => {
+                  const daysLeft = p.daysToPoassession;
+                  const urgency = daysLeft === null || daysLeft === undefined ? 'neutral'
+                    : daysLeft < 0    ? 'past'
+                    : daysLeft <= 90  ? 'critical'
+                    : daysLeft <= 180 ? 'warning'
+                    : 'ok';
+                  const chipCls = {
+                    neutral:  'bg-gray-100 text-gray-600',
+                    past:     'bg-red-100 text-red-700',
+                    critical: 'bg-orange-100 text-orange-700',
+                    warning:  'bg-yellow-100 text-yellow-700',
+                    ok:       'bg-green-100 text-green-700',
+                  }[urgency];
+                  const borderCls = {
+                    neutral:  'border-l-gray-300',
+                    past:     'border-l-red-400',
+                    critical: 'border-l-orange-400',
+                    warning:  'border-l-yellow-400',
+                    ok:       'border-l-green-400',
+                  }[urgency];
+                  const builderPct = p.totalInstallmentAmount > 0
+                    ? Math.min(100, Math.round((p.paidInstallmentAmount / p.totalInstallmentAmount) * 100))
+                    : 0;
+                  const loanPct = Math.min(100, Math.round(p.loanPercentRepaid || 0));
+
+                  return (
+                    <Link to="/property" key={p.id}>
+                      <div className={`border border-gray-100 border-l-4 ${borderCls} rounded-xl p-4 hover:shadow-md transition-shadow h-full bg-gray-50`}>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 text-sm truncate">{p.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{p.location || p.builderName || '—'}</p>
+                          </div>
+                          {daysLeft !== null && daysLeft !== undefined && (
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${chipCls}`}>
+                              {daysLeft < 0 ? 'Possessed' : daysLeft === 0 ? 'Today!' : `${daysLeft}d`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mb-2">
+                          <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Builder Payments</span><span>{builderPct}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary-400 rounded-full transition-all" style={{ width: `${builderPct}%` }} />
+                          </div>
+                        </div>
+                        {p.hasLoan && (
+                          <div className="mb-2">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Loan Repaid</span><span>{loanPct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${loanPct}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        {p.nextInstallmentAmount > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between gap-2">
+                            <span className="text-xs text-gray-400 shrink-0">Next Due</span>
+                            <div className="text-right min-w-0">
+                              <span className="text-xs font-bold text-gray-800">{fmtCr(p.nextInstallmentAmount)}</span>
+                              {p.nextInstallmentDescription && (
+                                <p className="text-xs text-gray-400 truncate">{p.nextInstallmentDescription}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── Streak + Goal ring + Weekly trend row ── */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

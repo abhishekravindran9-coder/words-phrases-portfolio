@@ -27,7 +27,7 @@ export default function Navbar({ onMenuClick }) {
       </button>
 
       {/* Centre: brand (visible on mobile when sidebar is hidden) */}
-      <span className="text-primary-600 font-bold text-lg lg:hidden">📚 Words &amp; Phrases</span>
+      <span className="text-primary-600 font-bold text-lg lg:hidden">&#x1F511; My Vault</span>
 
       {/* Right: user actions */}
       <div className="flex items-center gap-2 ml-auto">

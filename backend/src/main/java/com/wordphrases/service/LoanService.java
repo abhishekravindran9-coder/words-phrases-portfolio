@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.TextStyle;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -54,6 +55,8 @@ public class LoanService {
                     .interestType(req.getInterestType() != null ? req.getInterestType() : "FIXED")
                     .tenureMonths(req.getTenureMonths())
                     .emiStartDate(req.getEmiStartDate())
+                    .bankName(req.getBankName())
+                    .accountNumber(req.getAccountNumber())
                     .build();
         } else {
             if (req.getSanctionedAmount() != null)  loan.setSanctionedAmount(req.getSanctionedAmount());
@@ -61,6 +64,8 @@ public class LoanService {
             if (req.getInterestType() != null)       loan.setInterestType(req.getInterestType());
             if (req.getTenureMonths() != null)       loan.setTenureMonths(req.getTenureMonths());
             if (req.getEmiStartDate() != null)       loan.setEmiStartDate(req.getEmiStartDate());
+            if (req.getBankName() != null)           loan.setBankName(req.getBankName());
+            if (req.getAccountNumber() != null)      loan.setAccountNumber(req.getAccountNumber());
         }
         return toResponse(loanRepository.save(loan));
     }
@@ -599,6 +604,19 @@ public class LoanService {
         double totalPrepaid    = prepayments.stream().mapToDouble(Prepayment::getAmount).sum();
         double computedEmi     = calculateEmi(loan.getSanctionedAmount(), loan.getInterestRate(), loan.getTenureMonths());
 
+        // Enriched computed fields
+        LocalDate start               = loan.getEmiStartDate();
+        LocalDate closureDate         = start != null ? start.plusMonths(loan.getTenureMonths() - 1L) : null;
+        LocalDate nextEmiDueDate      = start != null ? start.plusMonths(paidCount) : null;
+        Long daysUntilNextEmi         = nextEmiDueDate != null
+                                        ? ChronoUnit.DAYS.between(LocalDate.now(), nextEmiDueDate) : null;
+        double safeOutstanding        = Math.max(0, outstanding);
+        double principalRepaid        = round(loan.getSanctionedAmount() - safeOutstanding);
+        double percentComplete        = round((paidCount * 100.0) / loan.getTenureMonths());
+        double interestCostRatio      = round((totalInterest / loan.getSanctionedAmount()) * 100.0);
+        double currentMonthInterest   = round(safeOutstanding * loan.getInterestRate() / 1200.0);
+        double currentMonthPrincipal  = round(computedEmi - currentMonthInterest);
+
         return LoanResponse.builder()
                 .id(loan.getId())
                 .sanctionedAmount(loan.getSanctionedAmount())
@@ -606,14 +624,24 @@ public class LoanService {
                 .interestType(loan.getInterestType())
                 .tenureMonths(loan.getTenureMonths())
                 .emiStartDate(loan.getEmiStartDate())
+                .bankName(loan.getBankName())
+                .accountNumber(loan.getAccountNumber())
                 .createdAt(loan.getCreatedAt())
                 .computedEmi(computedEmi)
                 .totalInterest(round(totalInterest))
                 .totalPayment(round(loan.getSanctionedAmount() + totalInterest))
-                .outstandingBalance(round(Math.max(0, outstanding)))
+                .outstandingBalance(round(safeOutstanding))
                 .paidEmiCount(paidCount)
                 .remainingEmiCount(schedule.size() - paidCount)
                 .totalPrepaid(round(totalPrepaid))
+                .closureDate(closureDate)
+                .nextEmiDueDate(nextEmiDueDate)
+                .daysUntilNextEmi(daysUntilNextEmi)
+                .principalRepaid(principalRepaid)
+                .percentComplete(percentComplete)
+                .interestCostRatio(interestCostRatio)
+                .currentMonthInterest(currentMonthInterest)
+                .currentMonthPrincipal(currentMonthPrincipal)
                 .build();
     }
 

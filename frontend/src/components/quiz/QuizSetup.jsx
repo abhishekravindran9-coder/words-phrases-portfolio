@@ -25,7 +25,7 @@ export default function QuizSetup({ wordCount, wordsWithDefinitions, onStart }) 
         <p className="text-6xl mb-3">🎯</p>
         <h1 className="text-2xl font-extrabold text-gray-900">Quick Quiz</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Test yourself across all your words & phrases
+          Test yourself across all your vocabulary
         </p>
       </div>
 

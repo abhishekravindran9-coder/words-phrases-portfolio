@@ -11,4 +11,6 @@ public class LoanRequest {
     private String interestType; // FIXED | FLOATING
     private Integer tenureMonths;
     private LocalDate emiStartDate;
+    private String bankName;
+    private String accountNumber;
 }

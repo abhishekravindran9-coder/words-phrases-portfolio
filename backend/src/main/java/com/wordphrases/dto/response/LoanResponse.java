@@ -15,9 +15,11 @@ public class LoanResponse {
     private String interestType;
     private Integer tenureMonths;
     private LocalDate emiStartDate;
+    private String bankName;
+    private String accountNumber;
     private LocalDateTime createdAt;
 
-    // Computed
+    // Computed — basic
     private Double computedEmi;
     private Double totalInterest;
     private Double totalPayment;
@@ -25,4 +27,14 @@ public class LoanResponse {
     private int paidEmiCount;
     private int remainingEmiCount;
     private Double totalPrepaid;
+
+    // Computed — enriched
+    private LocalDate closureDate;
+    private LocalDate nextEmiDueDate;
+    private Long daysUntilNextEmi;
+    private Double principalRepaid;
+    private Double percentComplete;
+    private Double interestCostRatio;
+    private Double currentMonthInterest;
+    private Double currentMonthPrincipal;
 }

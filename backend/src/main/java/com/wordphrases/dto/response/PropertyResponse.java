@@ -21,11 +21,22 @@ public class PropertyResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Summary
+    // Installment summary
     private int totalInstallments;
     private int paidInstallments;
     private Double totalInstallmentAmount;
     private Double paidInstallmentAmount;
     private Double percentComplete;
     private boolean hasLoan;
+
+    // Enriched card fields
+    private Long daysToPoassession;
+    private Double loanOutstanding;
+    private Double loanEmi;
+    private Integer loanPaidCount;
+    private Integer loanTotalMonths;
+    private Double loanPercentRepaid;
+    private Double nextInstallmentAmount;
+    private LocalDate nextInstallmentDate;
+    private String nextInstallmentDescription;
 }

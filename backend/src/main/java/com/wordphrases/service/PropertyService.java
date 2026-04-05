@@ -10,13 +10,17 @@ import com.wordphrases.model.BuilderInstallment;
 import com.wordphrases.model.Property;
 import com.wordphrases.model.User;
 import com.wordphrases.repository.BuilderInstallmentRepository;
+import com.wordphrases.repository.EmiPaymentRepository;
 import com.wordphrases.repository.PropertyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +28,7 @@ public class PropertyService {
 
     private final PropertyRepository propertyRepository;
     private final BuilderInstallmentRepository installmentRepository;
+    private final EmiPaymentRepository emiPaymentRepository;
     private final UserService userService;
 
     // ─── Property CRUD ───────────────────────────────────────────────────────────
@@ -147,6 +152,42 @@ public class PropertyService {
                 .mapToDouble(i -> nullOr(i.getAmount(), 0.0)).sum();
         double pct = totalAmt > 0 ? (paidAmt / totalAmt) * 100 : 0.0;
 
+        // Possession countdown
+        Long daysToPoassession = p.getPossessionDate() != null
+                ? ChronoUnit.DAYS.between(LocalDate.now(), p.getPossessionDate()) : null;
+
+        // Next unpaid installment
+        Optional<BuilderInstallment> nextOpt = installments.stream()
+                .filter(i -> !Boolean.TRUE.equals(i.getPaid()) && i.getDueDate() != null)
+                .min(Comparator.comparing(BuilderInstallment::getDueDate));
+        Double nextInstAmt  = nextOpt.map(BuilderInstallment::getAmount).orElse(null);
+        LocalDate nextInstDate = nextOpt.map(BuilderInstallment::getDueDate).orElse(null);
+        String nextInstDesc = nextOpt.map(BuilderInstallment::getDescription).orElse(null);
+
+        // Loan enrichment
+        var loan = p.getLoan();
+        Double loanEmi = null;
+        Double loanOutstanding = null;
+        Integer loanPaidCount = null;
+        Integer loanTotalMonths = null;
+        Double loanPercentRepaid = null;
+        if (loan != null) {
+            loanTotalMonths = loan.getTenureMonths();
+            double r = loan.getInterestRate() / 1200.0;
+            double n = loanTotalMonths;
+            double principal = loan.getSanctionedAmount();
+            loanEmi = r == 0 ? round(principal / n)
+                    : round(principal * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+            int paid = (int) emiPaymentRepository.findByLoanOrderByMonthNumberAsc(loan)
+                    .stream().filter(ep -> Boolean.TRUE.equals(ep.getPaid())).count();
+            loanPaidCount = paid;
+            loanPercentRepaid = round((paid * 100.0) / n);
+            double k = paid;
+            loanOutstanding = r == 0
+                    ? round(Math.max(0, principal - loanEmi * k))
+                    : round(Math.max(0, principal * (Math.pow(1 + r, n) - Math.pow(1 + r, k)) / (Math.pow(1 + r, n) - 1)));
+        }
+
         return PropertyResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -163,7 +204,16 @@ public class PropertyService {
                 .totalInstallmentAmount(totalAmt)
                 .paidInstallmentAmount(paidAmt)
                 .percentComplete(round(pct))
-                .hasLoan(p.getLoan() != null)
+                .hasLoan(loan != null)
+                .daysToPoassession(daysToPoassession)
+                .loanEmi(loanEmi)
+                .loanOutstanding(loanOutstanding)
+                .loanPaidCount(loanPaidCount)
+                .loanTotalMonths(loanTotalMonths)
+                .loanPercentRepaid(loanPercentRepaid)
+                .nextInstallmentAmount(nextInstAmt)
+                .nextInstallmentDate(nextInstDate)
+                .nextInstallmentDescription(nextInstDesc)
                 .build();
     }
 

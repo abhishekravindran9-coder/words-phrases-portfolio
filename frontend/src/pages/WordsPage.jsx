@@ -173,7 +173,7 @@ export default function WordsPage() {
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold text-gray-900">My Words &amp; Phrases</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900">My Vault</h1>
         <Button onClick={openAdd}>
           <PlusIcon className="h-4 w-4 mr-1" /> Add Entry
         </Button>

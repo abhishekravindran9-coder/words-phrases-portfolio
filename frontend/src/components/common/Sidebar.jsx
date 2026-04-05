@@ -52,7 +52,7 @@ export default function Sidebar({ isOpen, onClose }) {
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-          <span className="text-xl font-bold text-primary-600">📚 W&amp;P</span>
+          <span className="text-xl font-bold text-primary-600">&#x1F511; My Vault</span>
           <button
             className="lg:hidden text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             onClick={onClose}

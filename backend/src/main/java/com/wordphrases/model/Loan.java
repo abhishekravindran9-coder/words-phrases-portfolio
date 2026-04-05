@@ -41,6 +41,12 @@ public class Loan {
     @Column(name = "emi_start_date")
     private LocalDate emiStartDate;
 
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
+
+    @Column(name = "account_number", length = 50)
+    private String accountNumber;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

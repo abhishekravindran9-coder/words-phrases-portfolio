@@ -53,7 +53,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-indigo-100 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">📚</div>
+          <div className="text-5xl mb-3">&#x1F511;</div>
           <h1 className="text-3xl font-extrabold text-gray-900">Get Started</h1>
           <p className="text-gray-500 mt-2">Create your free account</p>
         </div>
