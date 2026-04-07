@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../common/Button';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
-import { TrophyIcon } from '@heroicons/react/24/outline';
+import { TrophyIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
 
 function grade(pct) {
   if (pct >= 90) return { letter: 'A', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', emoji: '🏆' };
@@ -17,7 +17,13 @@ function fmtTime(secs) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export default function QuizResults({ questions, answers, elapsed, onRetry, onSetup }) {
+const TYPE_LABELS = {
+  MULTIPLE_CHOICE:    '🔤 Multiple Choice',
+  FILL_BLANK_WORD:    '✏️ Type the Word',
+  FILL_BLANK_SENTENCE:'📝 Fill in the Blank',
+};
+
+export default function QuizResults({ questions, answers, elapsed, onRetry, onSetup, sessionSaved, quizStats }) {
   const correct = answers.filter((a) => a.isCorrect).length;
   const total   = questions.length;
   const pct     = total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -26,6 +32,19 @@ export default function QuizResults({ questions, answers, elapsed, onRetry, onSe
   const wrongOnes = questions
     .map((q, i) => ({ q, a: answers[i] }))
     .filter(({ a }) => a && !a.isCorrect);
+
+  // Compute per-type accuracy for this session
+  const typeMap = {};
+  questions.forEach((q, i) => {
+    const type = q.type;
+    if (!typeMap[type]) typeMap[type] = { correct: 0, total: 0 };
+    typeMap[type].total++;
+    if (answers[i]?.isCorrect) typeMap[type].correct++;
+  });
+
+  // Comparison with lifetime average
+  const avgScore = quizStats?.averageScore;
+  const vsAvg    = avgScore != null ? pct - Math.round(avgScore) : null;
 
   return (
     <div className="max-w-lg mx-auto space-y-5 animate-fade-in">
@@ -37,7 +56,31 @@ export default function QuizResults({ questions, answers, elapsed, onRetry, onSe
         <p className="text-3xl font-bold text-gray-900 mt-2">{pct}%</p>
         <p className="text-gray-500 mt-1 text-sm">{correct} of {total} correct</p>
         <p className="text-xs text-gray-400 mt-1">⏱ {fmtTime(elapsed)}</p>
+
+        {/* Saved indicator */}
+        {sessionSaved && (
+          <div className="mt-3 inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700">
+            <CheckBadgeIcon className="h-4 w-4" />
+            Result saved
+          </div>
+        )}
       </div>
+
+      {/* ── Comparison to average ── */}
+      {vsAvg !== null && (
+        <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 text-sm
+          ${vsAvg >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-orange-50 border-orange-200'}`}>
+          <span className="text-lg">{vsAvg >= 0 ? '📈' : '📉'}</span>
+          <div>
+            <span className={`font-bold ${vsAvg >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>
+              {vsAvg >= 0 ? `+${vsAvg}%` : `${vsAvg}%`} vs your average
+            </span>
+            <span className="text-gray-500 ml-2">
+              (lifetime avg: {Math.round(avgScore)}%)
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ── Mini stats row ── */}
       <div className="grid grid-cols-3 gap-3">
@@ -54,6 +97,34 @@ export default function QuizResults({ questions, answers, elapsed, onRetry, onSe
           <p className="text-xs text-gray-400 mt-0.5">Time</p>
         </div>
       </div>
+
+      {/* ── This session by question type ── */}
+      {Object.keys(typeMap).length > 1 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+            Accuracy by type
+          </p>
+          <div className="space-y-2">
+            {Object.entries(typeMap).map(([type, stat]) => {
+              const typePct = Math.round((stat.correct / stat.total) * 100);
+              return (
+                <div key={type} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 w-40 flex-shrink-0">
+                    {TYPE_LABELS[type] || type}
+                  </span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-2 rounded-full bg-primary-500 transition-all"
+                      style={{ width: `${typePct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 w-8 text-right">{typePct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Perfect score ── */}
       {wrongOnes.length === 0 && (

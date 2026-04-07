@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Button from '../common/Button';
 import {
   AcademicCapIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
+  FireIcon, TrophyIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const LENGTHS = [
@@ -11,7 +12,25 @@ const LENGTHS = [
   { n: 20, sub: '~8 min' },
 ];
 
-export default function QuizSetup({ wordCount, wordsWithDefinitions, onStart }) {
+const TYPE_LABELS = {
+  MULTIPLE_CHOICE:    '🔤 Multiple Choice',
+  FILL_BLANK_WORD:    '✏️ Type the Word',
+  FILL_BLANK_SENTENCE:'📝 Fill in the Blank',
+};
+
+function ScoreBar({ label, value, color = 'bg-primary-500' }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-500 w-36 flex-shrink-0">{label}</span>
+      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+        <div className={`h-2 rounded-full ${color}`} style={{ width: `${Math.min(value, 100)}%` }} />
+      </div>
+      <span className="text-xs font-bold text-gray-700 w-9 text-right">{Math.round(value)}%</span>
+    </div>
+  );
+}
+
+export default function QuizSetup({ wordCount, wordsWithDefinitions, onStart, quizStats }) {
   const [selected, setSelected] = useState(10);
 
   const canQuiz   = wordsWithDefinitions >= 4;
@@ -128,6 +147,116 @@ export default function QuizSetup({ wordCount, wordsWithDefinitions, onStart }) 
             <AcademicCapIcon className="h-5 w-5" />
             Start {selected}-question Quiz
           </Button>
+
+          {/* ── Lifetime stats ── */}
+          {quizStats && quizStats.totalQuizzesTaken > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <ChartBarIcon className="h-4 w-4 text-primary-500" />
+                Your Quiz Stats
+              </h3>
+
+              {/* Top numbers */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-primary-600">{quizStats.totalQuizzesTaken}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Total quizzes</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-emerald-600">{quizStats.averageScore}%</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Average score</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-yellow-500">{quizStats.bestScore}%</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Best score</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-orange-500">{quizStats.overallAccuracy}%</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Overall accuracy</p>
+                </div>
+              </div>
+
+              {/* Streak */}
+              {quizStats.currentPassingStreak > 0 && (
+                <div className="flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+                  <FireIcon className="h-5 w-5 text-orange-500" />
+                  <span className="text-sm font-semibold text-orange-700">
+                    {quizStats.currentPassingStreak}-day passing streak
+                  </span>
+                  {quizStats.currentPassingStreak === quizStats.longestPassingStreak && (
+                    <span className="ml-auto text-xs text-orange-500">🏅 Personal best</span>
+                  )}
+                </div>
+              )}
+
+              {/* Accuracy by type */}
+              {quizStats.accuracyByType && Object.keys(quizStats.accuracyByType).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Accuracy by type
+                  </p>
+                  <div className="space-y-2">
+                    {Object.entries(quizStats.accuracyByType).map(([type, stat]) => (
+                      <ScoreBar
+                        key={type}
+                        label={TYPE_LABELS[type] || type}
+                        value={stat.accuracy}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Most missed */}
+              {quizStats.mostMissedWords && quizStats.mostMissedWords.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Words to focus on
+                  </p>
+                  <div className="space-y-1.5">
+                    {quizStats.mostMissedWords.slice(0, 5).map((w) => (
+                      <div key={w.wordId} className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-700">{w.word}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-red-500">
+                            {w.wrongCount} miss{w.wrongCount !== 1 ? 'es' : ''}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {Math.round(w.accuracy)}% acc
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent sessions */}
+              {quizStats.recentSessions && quizStats.recentSessions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Recent sessions
+                  </p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {quizStats.recentSessions.slice(0, 8).reverse().map((s) => {
+                      const bg = s.scorePercent >= 90 ? 'bg-emerald-500'
+                               : s.scorePercent >= 60 ? 'bg-primary-500'
+                               : 'bg-red-400';
+                      return (
+                        <div
+                          key={s.sessionId}
+                          title={`${Math.round(s.scorePercent)}% · ${s.correctCount}/${s.questionCount}`}
+                          className={`${bg} text-white text-xs font-bold rounded-lg px-2.5 py-1`}
+                        >
+                          {Math.round(s.scorePercent)}%
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

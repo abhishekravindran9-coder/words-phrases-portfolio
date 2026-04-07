@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { wordService } from '../services/wordService';
+import { quizService } from '../services/quizService';
 import QuizSetup     from '../components/quiz/QuizSetup';
 import QuizQuestion  from '../components/quiz/QuizQuestion';
 import QuizResults   from '../components/quiz/QuizResults';
@@ -99,13 +100,19 @@ export default function QuizPage() {
   const [quizLength,    setQuizLength]    = useState(10);
   const [startTime,     setStartTime]     = useState(null);
   const [elapsed,       setElapsed]       = useState(0);
+  const [quizStats,     setQuizStats]     = useState(null);
+  const [sessionSaved,  setSessionSaved]  = useState(false);
+  // Keep a ref in sync with answers state so the persist effect always reads fresh data
+  const answersRef   = useRef([]);
+  const questionsRef = useRef([]);
 
-  // Fetch word pool once on mount
+  // Fetch word pool and lifetime stats on mount
   useEffect(() => {
     wordService
       .getWords({ size: 200 })
       .then((data) => setAllWords(data.content || []))
       .finally(() => setLoadingWords(false));
+    quizService.getStats().then(setQuizStats).catch(() => {});
   }, []);
 
   // Tick the timer while a quiz is active
@@ -120,20 +127,58 @@ export default function QuizPage() {
   const startQuiz = useCallback(
     (length) => {
       const qs = buildQuiz(allWords, length);
+      answersRef.current   = [];
+      questionsRef.current = qs;
       setQuestions(qs);
       setCurrentIndex(0);
       setAnswers([]);
       setQuizLength(length);
       setStartTime(Date.now());
       setElapsed(0);
+      setSessionSaved(false);
       setPhase('quiz');
     },
     [allWords]
   );
 
-  const handleAnswer = (isCorrect, userAnswer) => {
-    setAnswers((prev) => [...prev, { isCorrect, userAnswer }]);
+  const handleAnswer = (isCorrect, userAnswer, timeTaken) => {
+    const entry = { isCorrect, userAnswer, timeTaken };
+    answersRef.current = [...answersRef.current, entry];
+    setAnswers(answersRef.current);
   };
+
+  // Persist the session when quiz completes
+  useEffect(() => {
+    if (phase !== 'results') return;
+    const qs  = questionsRef.current;
+    const ans = answersRef.current;
+    if (qs.length === 0 || ans.length === 0) return;
+
+    const finalElapsed = startTime ? Math.round((Date.now() - startTime) / 1000) : elapsed;
+    const payload = {
+      questionCount:    qs.length,
+      totalTimeSeconds: finalElapsed,
+      answers: qs.map((q, i) => ({
+        wordId:          q.word.id,
+        questionType:    q.type,
+        correct:         ans[i]?.isCorrect  ?? false,
+        timeTakenSeconds: ans[i]?.timeTaken ?? 0,
+        userAnswer:      ans[i]?.userAnswer ?? '',
+        correctAnswer:   q.correctAnswer,
+      })),
+    };
+
+    quizService
+      .saveSession(payload)
+      .then(() => {
+        setSessionSaved(true);
+        // Refresh stats so the setup screen is up-to-date on next visit
+        return quizService.getStats();
+      })
+      .then(setQuizStats)
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const handleNext = () => {
     if (currentIndex + 1 >= questions.length) {
@@ -161,6 +206,7 @@ export default function QuizPage() {
         wordCount={allWords.length}
         wordsWithDefinitions={allWords.filter((w) => w.definition && w.definition.trim()).length}
         onStart={startQuiz}
+        quizStats={quizStats}
       />
     );
   }
@@ -175,6 +221,8 @@ export default function QuizPage() {
         elapsed={elapsed}
         onRetry={() => startQuiz(quizLength)}
         onSetup={() => setPhase('setup')}
+        sessionSaved={sessionSaved}
+        quizStats={quizStats}
       />
     );
   }

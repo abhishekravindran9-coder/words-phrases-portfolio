@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { progressService } from '../services/progressService';
+import { quizService } from '../services/quizService';
 import ReviewChart from '../components/progress/ReviewChart';
 import MasteryChart from '../components/progress/MasteryChart';
 import MasteryProgressBar from '../components/progress/MasteryProgressBar';
 import RecallQualityGauge from '../components/progress/RecallQualityGauge';
 import CategoryBreakdownChart from '../components/progress/CategoryBreakdownChart';
+import QuizStatsSection from '../components/progress/QuizStatsSection';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Link } from 'react-router-dom';
 import {
@@ -51,13 +53,18 @@ function RecordCard({ icon: Icon, label, value, color }) {
  * Progress page – visual charts and aggregated statistics.
  */
 export default function ProgressPage() {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data,       setData]       = useState(null);
+  const [quizStats,  setQuizStats]  = useState(null);
+  const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
-    progressService.getProgress()
-      .then(setData)
-      .finally(() => setLoading(false));
+    Promise.all([
+      progressService.getProgress(),
+      quizService.getStats().catch(() => null),
+    ]).then(([progress, quiz]) => {
+      setData(progress);
+      setQuizStats(quiz);
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -168,6 +175,11 @@ export default function ProgressPage() {
       {(data?.topCategories?.length ?? 0) > 0 && (
         <CategoryBreakdownChart categories={data.topCategories} />
       )}
+
+      {/* ── Quiz performance ── */}
+      <div className="pt-2">
+        <QuizStatsSection stats={quizStats} />
+      </div>
 
     </div>
   );

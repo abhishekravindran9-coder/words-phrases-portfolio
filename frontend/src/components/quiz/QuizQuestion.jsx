@@ -12,21 +12,24 @@ export default function QuizQuestion({ question, onAnswer, onNext, isLast }) {
   const [selected,  setSelected]  = useState(null);   // MC: chosen option string
   const [typed,     setTyped]     = useState('');      // fill-in: typed answer
   const [isCorrect, setIsCorrect] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef        = useRef(null);
+  const questionShownAt = useRef(Date.now());
 
-  // Auto-focus text input for fill-in questions
+  // Reset the per-question timer and auto-focus when the question changes
   useEffect(() => {
+    questionShownAt.current = Date.now();
     if (question.type !== 'MULTIPLE_CHOICE' && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [question.type]);
+  }, [question]);
 
   const commit = (answer) => {
     if (answered) return;
-    const correct = normalise(answer) === normalise(question.correctAnswer);
+    const timeTaken = Math.round((Date.now() - questionShownAt.current) / 1000);
+    const correct   = normalise(answer) === normalise(question.correctAnswer);
     setIsCorrect(correct);
     setAnswered(true);
-    onAnswer(correct, answer);
+    onAnswer(correct, answer, timeTaken);
   };
 
   const handleMC = (opt) => {
