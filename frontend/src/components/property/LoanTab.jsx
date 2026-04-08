@@ -92,11 +92,16 @@ export default function LoanTab({ propertyId }) {
     );
   }
 
-  const pct         = loan.percentComplete ?? 0;
-  const yearsLeft   = loan.remainingEmiCount != null ? (loan.remainingEmiCount / 12).toFixed(1) : null;
-  const daysLeft    = loan.daysUntilNextEmi;
-  const interestPct = loan.computedEmi ? Math.round((loan.currentMonthInterest / loan.computedEmi) * 100) : 0;
-  const principalPct = 100 - interestPct;
+  const pct          = loan.percentComplete  ?? 0;   // principal-repaid % (correct)
+  const timelinePct   = loan.timelinePercent  ?? 0;   // EMIs paid as % of tenure
+  const yearsLeft     = loan.remainingEmiCount != null ? (loan.remainingEmiCount / 12).toFixed(1) : null;
+  const daysLeft      = loan.daysUntilNextEmi;
+  const interestPct   = loan.computedEmi ? Math.round((loan.currentMonthInterest / loan.computedEmi) * 100) : 0;
+  const principalPct  = 100 - interestPct;
+  const hasPrepayments = (loan.totalPrepaid ?? 0) > 0;
+  const interestSavingPct = (loan.originalTotalInterest ?? 0) > 0
+    ? Math.round((loan.interestSaved / loan.originalTotalInterest) * 100)
+    : 0;
 
   const dueChipColor =
     daysLeft == null ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
@@ -136,7 +141,7 @@ export default function LoanTab({ propertyId }) {
 
       {/* ── Progress band ──────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-2xl p-4 space-y-3">
-        {/* % + principal repaid */}
+        {/* Big % + principal cleared */}
         <div className="flex items-end justify-between">
           <div>
             <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{pct.toFixed(1)}%</p>
@@ -148,24 +153,43 @@ export default function LoanTab({ propertyId }) {
           </div>
         </div>
 
-        {/* Bar */}
-        <div className="h-3 bg-white/60 dark:bg-gray-700/60 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-400 transition-all"
-            style={{ width: `${Math.min(100, pct)}%` }}
-          />
+        {/* Principal repaid bar */}
+        <div>
+          <div className="h-3 bg-white/60 dark:bg-gray-700/60 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-blue-400 transition-all"
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+            <span>₹0</span>
+            <span>₹{fmt(loan.sanctionedAmount)}</span>
+          </div>
         </div>
 
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>{loan.paidEmiCount} of {loan.tenureMonths} EMIs paid</span>
-          <span>{loan.remainingEmiCount} remaining</span>
+        {/* EMI timeline secondary bar */}
+        <div className="bg-white/50 dark:bg-gray-800/50 rounded-xl px-3 py-2 space-y-1.5">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+            <span className="font-medium">EMI Timeline</span>
+            <span className="font-semibold text-gray-700 dark:text-gray-300">
+              {loan.paidEmiCount} / {loan.tenureMonths} paid
+              <span className="font-normal text-gray-400 ml-1">({timelinePct.toFixed(1)}%)</span>
+            </span>
+          </div>
+          <div className="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gray-400 dark:bg-gray-400 transition-all"
+              style={{ width: `${Math.min(100, timelinePct)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">{loan.remainingEmiCount} EMIs remaining</p>
         </div>
 
         {/* Chips */}
-        <div className="flex flex-wrap gap-2 pt-0.5">
-          {loan.closureDate && (
+        <div className="flex flex-wrap gap-2">
+          {(loan.actualClosureDate || loan.closureDate) && (
             <span className="inline-flex items-center gap-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1 font-medium text-gray-700 dark:text-gray-300">
-              🎯 Closes {fmtDate(loan.closureDate)}
+              🎯 Closes {fmtDate(loan.actualClosureDate || loan.closureDate)}
               {yearsLeft && <span className="text-gray-400 dark:text-gray-500 font-normal">· {yearsLeft} yrs left</span>}
             </span>
           )}
@@ -173,6 +197,11 @@ export default function LoanTab({ propertyId }) {
             <span className={`inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1 font-medium ${dueChipColor}`}>
               📅 {daysLeft === 0 ? 'EMI due today' : daysLeft < 0 ? `EMI overdue by ${Math.abs(daysLeft)}d` : `Due in ${daysLeft}d`}
               {' '}· ₹{fmt(loan.computedEmi)}
+            </span>
+          )}
+          {hasPrepayments && (loan.monthsSaved ?? 0) > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-full px-3 py-1 font-medium text-emerald-700 dark:text-emerald-400">
+              ⚡ {loan.monthsSaved}mo early thanks to prepayments
             </span>
           )}
         </div>
@@ -209,6 +238,86 @@ export default function LoanTab({ propertyId }) {
           </div>
         ))}
       </div>
+
+      {/* ── Prepayment Impact ──────────────────────────────────────────── */}
+      {hasPrepayments && (
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">💰</span>
+              <div>
+                <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Prepayment Impact</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  ₹{fmt(loan.totalPrepaid)} across {loan.prepaymentCount} {loan.prepaymentCount === 1 ? 'prepayment' : 'prepayments'}
+                </p>
+              </div>
+            </div>
+            {interestSavingPct > 0 && (
+              <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-800/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-700">
+                {interestSavingPct}% interest cut
+              </span>
+            )}
+          </div>
+
+          {/* 4 impact stats */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Interest Saved</p>
+              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">₹{fmt(loan.interestSaved)}</p>
+            </div>
+            <div className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Months Saved</p>
+              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {(loan.monthsSaved ?? 0) > 0 ? `${loan.monthsSaved} mo` : '—'}
+              </p>
+            </div>
+            <div className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Interest Paid So Far</p>
+              <p className="text-lg font-extrabold text-gray-700 dark:text-gray-200 mt-0.5">₹{fmt(loan.interestPaidTillNow)}</p>
+            </div>
+            <div className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wide">Interest Still Owed</p>
+              <p className="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                ₹{fmt((loan.totalInterest ?? 0) - (loan.interestPaidTillNow ?? 0))}
+              </p>
+            </div>
+          </div>
+
+          {/* Interest comparison bar — with vs without prepayments */}
+          {(loan.originalTotalInterest ?? 0) > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Interest Comparison</p>
+              <div className="space-y-1.5">
+                <div>
+                  <div className="flex justify-between text-xs mb-0.5">
+                    <span className="text-red-500 dark:text-red-400 font-medium">Without prepayments</span>
+                    <span className="text-red-500 dark:text-red-400 font-semibold">₹{fmt(loan.originalTotalInterest)}</span>
+                  </div>
+                  <div className="h-2.5 bg-red-100 dark:bg-red-900/30 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full" style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-0.5">
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">With your prepayments</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">₹{fmt(loan.totalInterest)}</span>
+                  </div>
+                  <div className="h-2.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all"
+                      style={{ width: `${loan.originalTotalInterest > 0 ? Math.round((loan.totalInterest / loan.originalTotalInterest) * 100) : 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium text-center">
+                You are paying {interestSavingPct}% less interest than without prepayments
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Current EMI split ──────────────────────────────────────────── */}
       {loan.currentMonthInterest != null && (

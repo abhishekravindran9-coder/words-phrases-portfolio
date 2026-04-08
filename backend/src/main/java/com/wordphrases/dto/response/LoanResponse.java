@@ -30,11 +30,21 @@ public class LoanResponse {
 
     // Computed — enriched
     private LocalDate closureDate;
+    private LocalDate actualClosureDate;
     private LocalDate nextEmiDueDate;
     private Long daysUntilNextEmi;
     private Double principalRepaid;
+    /** Principal repaid as a % of sanctioned amount (accurate measure of progress). */
     private Double percentComplete;
+    /** EMIs paid as a % of original tenure months (time-based proxy). */
+    private Double timelinePercent;
     private Double interestCostRatio;
     private Double currentMonthInterest;
     private Double currentMonthPrincipal;
+    // Prepayment impact
+    private Double originalTotalInterest;
+    private Double interestSaved;
+    private Integer monthsSaved;
+    private Integer prepaymentCount;
+    private Double interestPaidTillNow;
 }

@@ -595,6 +595,11 @@ public class LoanService {
         List<Prepayment> prepayments = prepaymentRepository.findByLoanOrderByPrepaymentDateAsc(loan);
         List<AmortizationEntryResponse> schedule = buildSchedule(loan, payments, prepayments);
 
+        // Baseline schedule (no prepayments) for impact comparison — reuse actual if no prepayments
+        List<AmortizationEntryResponse> baselineSchedule = prepayments.isEmpty()
+                ? schedule
+                : buildSchedule(loan, payments, Collections.emptyList());
+
         int paidCount = (int) schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid())).count();
         double outstanding = schedule.isEmpty() ? loan.getSanctionedAmount()
                 : schedule.stream().filter(e -> !Boolean.TRUE.equals(e.getPaid()))
@@ -604,16 +609,30 @@ public class LoanService {
         double totalPrepaid    = prepayments.stream().mapToDouble(Prepayment::getAmount).sum();
         double computedEmi     = calculateEmi(loan.getSanctionedAmount(), loan.getInterestRate(), loan.getTenureMonths());
 
+        // Prepayment impact fields
+        double baselineInterest    = baselineSchedule.stream().mapToDouble(AmortizationEntryResponse::getInterest).sum();
+        double interestSaved       = round(Math.max(0, baselineInterest - totalInterest));
+        int    monthsSaved         = Math.max(0, baselineSchedule.size() - schedule.size());
+        int    prepaymentCount     = prepayments.size();
+        double interestPaidTillNow = round(schedule.stream()
+                .filter(e -> Boolean.TRUE.equals(e.getPaid()))
+                .mapToDouble(AmortizationEntryResponse::getInterest).sum());
+
         // Enriched computed fields
         LocalDate start               = loan.getEmiStartDate();
         LocalDate closureDate         = start != null ? start.plusMonths(loan.getTenureMonths() - 1L) : null;
+        LocalDate actualClosureDate   = schedule.isEmpty() ? closureDate
+                                        : schedule.get(schedule.size() - 1).getDate();
         LocalDate nextEmiDueDate      = start != null ? start.plusMonths(paidCount) : null;
         Long daysUntilNextEmi         = nextEmiDueDate != null
                                         ? ChronoUnit.DAYS.between(LocalDate.now(), nextEmiDueDate) : null;
         double safeOutstanding        = Math.max(0, outstanding);
         double principalRepaid        = round(loan.getSanctionedAmount() - safeOutstanding);
-        double percentComplete        = round((paidCount * 100.0) / loan.getTenureMonths());
-        double interestCostRatio      = round((totalInterest / loan.getSanctionedAmount()) * 100.0);
+        // percentComplete = principal actually repaid / sanctioned amount (accurate financial measure)
+        double percentComplete        = round((principalRepaid / loan.getSanctionedAmount()) * 100.0);
+        // timelinePercent = EMIs paid / original tenure (time-based proxy)
+        double timelinePercent        = round((paidCount * 100.0) / loan.getTenureMonths());
+        double interestCostRatio      = round((baselineInterest / loan.getSanctionedAmount()) * 100.0);
         double currentMonthInterest   = round(safeOutstanding * loan.getInterestRate() / 1200.0);
         double currentMonthPrincipal  = round(computedEmi - currentMonthInterest);
 
@@ -635,13 +654,20 @@ public class LoanService {
                 .remainingEmiCount(schedule.size() - paidCount)
                 .totalPrepaid(round(totalPrepaid))
                 .closureDate(closureDate)
+                .actualClosureDate(actualClosureDate)
                 .nextEmiDueDate(nextEmiDueDate)
                 .daysUntilNextEmi(daysUntilNextEmi)
                 .principalRepaid(principalRepaid)
                 .percentComplete(percentComplete)
+                .timelinePercent(timelinePercent)
                 .interestCostRatio(interestCostRatio)
                 .currentMonthInterest(currentMonthInterest)
                 .currentMonthPrincipal(currentMonthPrincipal)
+                .originalTotalInterest(round(baselineInterest))
+                .interestSaved(interestSaved)
+                .monthsSaved(monthsSaved)
+                .prepaymentCount(prepaymentCount)
+                .interestPaidTillNow(interestPaidTillNow)
                 .build();
     }
 
