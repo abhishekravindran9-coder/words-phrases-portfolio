@@ -9,8 +9,10 @@ import com.wordphrases.exception.ResourceNotFoundException;
 import com.wordphrases.model.BuilderInstallment;
 import com.wordphrases.model.Property;
 import com.wordphrases.model.User;
+import com.wordphrases.model.Prepayment;
 import com.wordphrases.repository.BuilderInstallmentRepository;
 import com.wordphrases.repository.EmiPaymentRepository;
+import com.wordphrases.repository.PrepaymentRepository;
 import com.wordphrases.repository.PropertyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class PropertyService {
     private final PropertyRepository propertyRepository;
     private final BuilderInstallmentRepository installmentRepository;
     private final EmiPaymentRepository emiPaymentRepository;
+    private final PrepaymentRepository prepaymentRepository;
     private final UserService userService;
 
     // ─── Property CRUD ───────────────────────────────────────────────────────────
@@ -181,11 +184,32 @@ public class PropertyService {
             int paid = (int) emiPaymentRepository.findByLoanOrderByMonthNumberAsc(loan)
                     .stream().filter(ep -> Boolean.TRUE.equals(ep.getPaid())).count();
             loanPaidCount = paid;
-            loanPercentRepaid = round((paid * 100.0) / n);
-            double k = paid;
-            loanOutstanding = r == 0
-                    ? round(Math.max(0, principal - loanEmi * k))
-                    : round(Math.max(0, principal * (Math.pow(1 + r, n) - Math.pow(1 + r, k)) / (Math.pow(1 + r, n) - 1)));
+
+            // Walk the amortization schedule applying prepayments to get accurate outstanding/%.
+            // Group prepayments by year-month (same logic as LoanService.buildSchedule).
+            List<Prepayment> prepList = prepaymentRepository.findByLoanOrderByPrepaymentDateAsc(loan);
+            java.util.Map<String, Double> prepByYM = new java.util.HashMap<>();
+            for (Prepayment pp : prepList) {
+                String ym = pp.getPrepaymentDate().getYear() + "-" + pp.getPrepaymentDate().getMonthValue();
+                prepByYM.merge(ym, pp.getAmount(), Double::sum);
+            }
+            double balance = principal;
+            LocalDate emiStart = loan.getEmiStartDate();
+            for (int i = 0; i < paid; i++) {
+                // Apply any prepayment for this month before computing interest
+                if (emiStart != null) {
+                    LocalDate monthDate = emiStart.plusMonths(i);
+                    String ym = monthDate.getYear() + "-" + monthDate.getMonthValue();
+                    Double prepaid = prepByYM.get(ym);
+                    if (prepaid != null) balance = Math.max(0, balance - prepaid);
+                }
+                double interest = balance * r;
+                double principalPortion = Math.min(loanEmi - interest, balance);
+                if (principalPortion < 0) principalPortion = 0;
+                balance = Math.max(0, balance - principalPortion);
+            }
+            loanOutstanding = round(balance);
+            loanPercentRepaid = round(Math.min(100, ((principal - balance) / principal) * 100));
         }
 
         return PropertyResponse.builder()

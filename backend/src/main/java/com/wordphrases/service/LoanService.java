@@ -444,7 +444,10 @@ public class LoanService {
                 double[] ya = yearMap.computeIfAbsent(d.getYear(), k -> new double[]{0.0, 0.0});
                 ya[0] += e.getPrincipal();
                 ya[1] += e.getInterest();
-                if (!d.isAfter(today)) todayIdx = i;
+                // Use the last PAID entry as today marker.
+                // Date-only logic misses EMIs paid early (e.g. month 16 due Apr 30 paid on Apr 8).
+                if (Boolean.TRUE.equals(e.getPaid())) todayIdx = i;
+                else if (todayIdx == -1 && !d.isAfter(today)) todayIdx = i; // fallback if no paid entries yet
             }
 
             List<String> yearLabels  = new ArrayList<>(yearMap.keySet().stream().map(String::valueOf).toList());
@@ -601,10 +604,13 @@ public class LoanService {
                 : buildSchedule(loan, payments, Collections.emptyList());
 
         int paidCount = (int) schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid())).count();
-        double outstanding = schedule.isEmpty() ? loan.getSanctionedAmount()
-                : schedule.stream().filter(e -> !Boolean.TRUE.equals(e.getPaid()))
-                          .mapToDouble(AmortizationEntryResponse::getBalance).findFirst()
-                          .orElse(0.0);
+        // Use last PAID entry's balance as current outstanding.
+        // (First-unpaid entry's balance is the balance *after* the next EMI would be paid — one period ahead.)
+        double outstanding = paidCount == 0 ? loan.getSanctionedAmount()
+                : schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid()))
+                          .mapToDouble(AmortizationEntryResponse::getBalance)
+                          .reduce((a, b) -> b)          // take last paid entry's balance
+                          .orElse(loan.getSanctionedAmount());
         double totalInterest   = schedule.stream().mapToDouble(AmortizationEntryResponse::getInterest).sum();
         double totalPrepaid    = prepayments.stream().mapToDouble(Prepayment::getAmount).sum();
         double computedEmi     = calculateEmi(loan.getSanctionedAmount(), loan.getInterestRate(), loan.getTenureMonths());
