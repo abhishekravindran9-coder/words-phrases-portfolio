@@ -113,6 +113,17 @@ public class LoanService {
                 .stream().map(this::toPrepaymentResponse).toList();
     }
 
+    @Transactional
+    public void deletePrepayment(Long userId, Long propertyId, Long prepaymentId) {
+        Loan loan = findLoan(userId, propertyId);
+        Prepayment pp = prepaymentRepository.findById(prepaymentId)
+                .orElseThrow(() -> new com.wordphrases.exception.ResourceNotFoundException("Prepayment not found"));
+        if (!pp.getLoan().getId().equals(loan.getId())) {
+            throw new com.wordphrases.exception.ResourceNotFoundException("Prepayment not found");
+        }
+        prepaymentRepository.delete(pp);
+    }
+
     // ─── Prepayment Simulation ────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)

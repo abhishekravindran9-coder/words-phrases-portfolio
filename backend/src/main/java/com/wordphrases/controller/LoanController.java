@@ -56,6 +56,13 @@ public class LoanController extends BaseController {
         return ResponseEntity.ok(ApiResponse.ok(loanService.addPrepayment(getCurrentUserId(), propertyId, req)));
     }
 
+    @DeleteMapping("/prepayments/{prepaymentId}")
+    public ResponseEntity<ApiResponse<Void>> deletePrepayment(
+            @PathVariable Long propertyId, @PathVariable Long prepaymentId) {
+        loanService.deletePrepayment(getCurrentUserId(), propertyId, prepaymentId);
+        return ResponseEntity.ok(ApiResponse.ok("Prepayment deleted", null));
+    }
+
     @PostMapping("/simulate")
     public ResponseEntity<ApiResponse<PrepaymentSimulationResponse>> simulate(
             @PathVariable Long propertyId, @RequestBody List<PrepaymentRequest> reqs) {

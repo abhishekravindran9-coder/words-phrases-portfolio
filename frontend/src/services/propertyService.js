@@ -84,6 +84,10 @@ export const propertyService = {
     return res.data.data;
   },
 
+  async deletePrepayment(propertyId, prepaymentId) {
+    await api.delete(`/properties/${propertyId}/loan/prepayments/${prepaymentId}`);
+  },
+
   async simulate(propertyId, data) {
     const res = await api.post(`/properties/${propertyId}/loan/simulate`, data);
     return res.data.data;
