@@ -638,7 +638,7 @@ public class LoanService {
         double percentComplete        = round((principalRepaid / loan.getSanctionedAmount()) * 100.0);
         // timelinePercent = EMIs paid / original tenure (time-based proxy)
         double timelinePercent        = round((paidCount * 100.0) / loan.getTenureMonths());
-        double interestCostRatio      = round((baselineInterest / loan.getSanctionedAmount()) * 100.0);
+        double interestCostRatio      = round((totalInterest / loan.getSanctionedAmount()) * 100.0);
         double currentMonthInterest   = round(safeOutstanding * loan.getInterestRate() / 1200.0);
         double currentMonthPrincipal  = round(computedEmi - currentMonthInterest);
 
