@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Business logic for journal entries – create, read, update, delete.
@@ -86,7 +87,7 @@ public class JournalService {
         return wordIds.stream()
                 .map(id -> wordRepository.findByIdAndUser(id, user)
                         .orElseThrow(() -> new ResourceNotFoundException("Word", "id", id)))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private JournalEntryResponse toResponse(JournalEntry entry) {
