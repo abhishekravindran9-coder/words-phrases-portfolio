@@ -41,12 +41,13 @@ public class GeminiService {
      */
     public EnrichResponse enrichWord(String word) {
         String prompt = """
-                You are a vocabulary assistant. For the English word: "%s"
+                You are an expert vocabulary tutor. For the English word: "%s"
                 Return ONLY a valid JSON object (no markdown, no extra text) with:
                 {
-                  "definition": "<clear, concise definition>",
+                  "definition": "<detailed definition including etymology, nuance, and usage context>",
                   "partOfSpeech": "<noun|verb|adjective|adverb|etc>",
-                  "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>"]
+                  "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
+                  "notes": "<detailed explanation in simple layman terms — how to remember it, common confusions to avoid, memorable analogy or mnemonic, and when to use it in everyday speech>"
                 }
                 """.formatted(word);
         return callGemini(prompt, "word '" + word + "'");
@@ -61,11 +62,12 @@ public class GeminiService {
         }
 
         String prompt = """
-                You are a vocabulary assistant. For the phrase: "%s"
+                You are an expert vocabulary tutor. For the phrase: "%s"
                 Return ONLY a valid JSON object (no markdown, no extra text) with:
                 {
-                  "definition": "<concise meaning of the phrase>",
-                  "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>"]
+                  "definition": "<detailed meaning of the phrase including origin, context, and when it is used>",
+                  "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
+                  "notes": "<detailed explanation in simple layman terms — the story or origin behind the phrase, a memorable analogy, common misuse to avoid, and how to use it naturally in conversation>"
                 }
                 """.formatted(phrase);
         return callGemini(prompt, "phrase '" + phrase + "'");
@@ -81,7 +83,7 @@ public class GeminiService {
             requestBody = """
                     {
                       "contents": [{"parts": [{"text": %s}]}],
-                      "generationConfig": {"temperature": 0.2, "maxOutputTokens": 512}
+                      "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}
                     }
                     """.formatted(objectMapper.valueToTree(prompt).toString());
         } catch (Exception e) {
@@ -129,10 +131,12 @@ public class GeminiService {
         }
 
         String partOfSpeech = parsed.path("partOfSpeech").isMissingNode() ? null : parsed.path("partOfSpeech").asText(null);
+        String notes = parsed.path("notes").isMissingNode() ? null : parsed.path("notes").asText(null);
 
         return EnrichResponse.builder()
                 .definition(definition)
                 .examples(examples)
+                .notes(notes)
                 .partOfSpeech(partOfSpeech)
                 .source("gemini")
                 .build();

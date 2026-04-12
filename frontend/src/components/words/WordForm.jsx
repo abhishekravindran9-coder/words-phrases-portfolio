@@ -69,7 +69,11 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
         setSentences(result.examples.filter(Boolean));
       }
 
-      toast.success('Definition loaded!');
+      if (result.notes) {
+        setForm((f) => ({ ...f, notes: result.notes }));
+      }
+
+      toast.success('Definition, examples & notes loaded!');
     } catch (err) {
       if (err.isRateLimit) {
         // Start 60-second countdown
@@ -148,7 +152,11 @@ export default function WordForm({ initial = null, categories = [], onSubmit, on
             required
             placeholder={form.entryType === 'PHRASE' ? 'e.g. break a leg' : 'e.g. serendipity'}
             value={form.word}
-            onChange={set('word')}
+            onChange={(e) => {
+              const v = e.target.value;
+              const norm = v.length > 0 ? v[0].toUpperCase() + v.slice(1).toLowerCase() : v;
+              setForm((f) => ({ ...f, word: norm }));
+            }}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm
                        focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
