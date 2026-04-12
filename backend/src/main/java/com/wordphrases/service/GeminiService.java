@@ -47,7 +47,7 @@ public class GeminiService {
                   "definition": "<detailed definition including etymology, nuance, and usage context>",
                   "partOfSpeech": "<noun|verb|adjective|adverb|etc>",
                   "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
-                  "notes": "<detailed explanation in simple layman terms — how to remember it, common confusions to avoid, memorable analogy or mnemonic, and when to use it in everyday speech>"
+                  "notes": "<detailed explanation in simple layman terms — how to remember it, common confusions to avoid, memorable analogy or mnemonic, and when to use it in everyday speech. Use plain text only, no asterisks, no markdown formatting>"
                 }
                 """.formatted(word);
         return callGemini(prompt, "word '" + word + "'");
@@ -67,7 +67,7 @@ public class GeminiService {
                 {
                   "definition": "<detailed meaning of the phrase including origin, context, and when it is used>",
                   "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
-                  "notes": "<detailed explanation in simple layman terms — the story or origin behind the phrase, a memorable analogy, common misuse to avoid, and how to use it naturally in conversation>"
+                  "notes": "<detailed explanation in simple layman terms — the story or origin behind the phrase, a memorable analogy, common misuse to avoid, and how to use it naturally in conversation. Use plain text only, no asterisks, no markdown formatting>"
                 }
                 """.formatted(phrase);
         return callGemini(prompt, "phrase '" + phrase + "'");
@@ -83,7 +83,7 @@ public class GeminiService {
             requestBody = """
                     {
                       "contents": [{"parts": [{"text": %s}]}],
-                      "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}
+                      "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
                     }
                     """.formatted(objectMapper.valueToTree(prompt).toString());
         } catch (Exception e) {
