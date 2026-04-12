@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import {
   HomeIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
   ChartBarIcon, PencilSquareIcon, XMarkIcon, AcademicCapIcon,
@@ -24,6 +25,13 @@ const LINKS = [
 export default function Sidebar({ isOpen, onClose }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [apiVersion, setApiVersion] = useState(null);
+
+  useEffect(() => {
+    api.get('/version')
+      .then(r => setApiVersion(r.data.version))
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -90,7 +98,7 @@ export default function Sidebar({ isOpen, onClose }) {
         </nav>
 
         {/* Logout */}
-        <div className="px-3 pb-4">
+        <div className="px-3 pb-3">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
@@ -101,6 +109,14 @@ export default function Sidebar({ isOpen, onClose }) {
             </svg>
             Logout
           </button>
+        </div>
+
+        {/* Version badge */}
+        <div className="px-4 pb-4 text-center border-t border-gray-100 dark:border-gray-700 pt-2">
+          <p className="text-xs text-gray-400 dark:text-gray-600 tabular-nums">
+            UI&nbsp;v{process.env.REACT_APP_VERSION || '1.0.0'}
+            {apiVersion && <>&nbsp;·&nbsp;API&nbsp;v{apiVersion}</>}
+          </p>
         </div>
       </aside>
     </>
