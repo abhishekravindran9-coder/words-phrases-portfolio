@@ -124,7 +124,7 @@ export default function JournalPage() {
       return new Date(b.createdAt) - new Date(a.createdAt); // newest
     });
     return result;
-  }, [allEntries, search, moodFilter, sortBy]);
+  }, [allEntries, search, moodFilter, categoryFilter, sortBy]);
 
   const groupedEntries = useMemo(() => {
     const groups = {};
