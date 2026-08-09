@@ -22,6 +22,10 @@ public class JournalEntryResponse {
     private String content;
     private String mood;
 
+    private String articleUrl;
+    private String articleTitle;
+    private String category;
+
     /** Abbreviated info about vocabulary words referenced in this entry. */
     private List<WordSummary> usedWords;
 

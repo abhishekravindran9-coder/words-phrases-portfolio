@@ -19,6 +19,15 @@ public class JournalEntryRequest {
 
     private String mood;
 
+    /** Article URL if this entry is based on an article. */
+    private String articleUrl;
+
+    /** Article title if applicable. */
+    private String articleTitle;
+
+    /** Category for organization. */
+    private String category;
+
     /** IDs of vocabulary words referenced in this entry. */
     private List<Long> usedWordIds;
 }

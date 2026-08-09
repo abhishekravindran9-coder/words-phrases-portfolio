@@ -9,11 +9,13 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import {
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, BookOpenIcon,
-  FunnelIcon, BarsArrowDownIcon,
+  FunnelIcon, BarsArrowDownIcon, ListBulletIcon, CalendarIcon, FolderIcon,
+  PencilIcon, Bars3Icon, TrashIcon,
 } from '@heroicons/react/24/outline';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { MOOD_OPTIONS } from '../utils/constants';
 
-const EMPTY_FORM = { title: '', content: '', mood: '', usedWordIds: [] };
+const EMPTY_FORM = { title: '', content: '', mood: '', articleUrl: '', articleTitle: '', category: '', usedWordIds: [] };
 const PAGE_SIZE  = 6;
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
@@ -63,6 +65,27 @@ export default function JournalPage() {
   const [sortBy,       setSortBy]       = useState('newest');
   const [showSort,     setShowSort]     = useState(false);
   const [page,         setPage]         = useState(0);
+  const [viewMode,     setViewMode]     = useState('list'); // 'list', 'timeline', 'folders'
+  const [localCategories, setLocalCategories] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('journal-folders') || '[]'); } catch { return []; }
+  }); // empty folders created in UI, persisted in localStorage
+  const [newFolderName,  setNewFolderName]  = useState('');
+  const [renamingFolder, setRenamingFolder] = useState(null); // name of folder currently being renamed
+  const [renameValue,    setRenameValue]    = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [movingEntryId,  setMovingEntryId]  = useState(null); // id of card being moved to folder
+
+  // Detect which vocab words appear in content (whole-word, case-insensitive)
+  const detectWordsInContent = useCallback((content) => {
+    if (!content.trim() || !words.length) return [];
+    const text = content.toLowerCase();
+    return words
+      .filter((w) => {
+        const escaped = w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+      })
+      .map((w) => w.id);
+  }, [words]);
   const contentRef = useRef(null);
 
   const fetchEntries = useCallback(async () => {
@@ -87,10 +110,11 @@ export default function JournalPage() {
   const filteredEntries = useMemo(() => {
     let result = allEntries;
     if (moodFilter) result = result.filter((e) => e.mood === moodFilter);
+    if (categoryFilter) result = result.filter((e) => (e.category || 'Uncategorized') === categoryFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       result  = result.filter(
-        (e) => e.title?.toLowerCase().includes(q) || e.content?.toLowerCase().includes(q),
+        (e) => e.title?.toLowerCase().includes(q) || e.content?.toLowerCase().includes(q) || e.articleTitle?.toLowerCase().includes(q),
       );
     }
     result = [...result].sort((a, b) => {
@@ -102,9 +126,30 @@ export default function JournalPage() {
     return result;
   }, [allEntries, search, moodFilter, sortBy]);
 
-  const totalPages  = Math.ceil(filteredEntries.length / PAGE_SIZE);
-  const pageEntries = filteredEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  useEffect(() => { setPage(0); }, [search, moodFilter, sortBy]);
+  const groupedEntries = useMemo(() => {
+    const groups = {};
+    // Seed local (empty) folders so they appear in folders view
+    localCategories.forEach((cat) => { groups[cat] = []; });
+    filteredEntries.forEach((e) => {
+      const cat = e.category || 'Uncategorized';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(e);
+    });
+    return groups;
+  }, [filteredEntries, localCategories]);
+
+  // All known categories: from entries + locally created empty folders
+  const allCategories = useMemo(() => {
+    const fromEntries = allEntries.map((e) => e.category).filter(Boolean);
+    return [...new Set([...fromEntries, ...localCategories])].sort();
+  }, [allEntries, localCategories]);
+
+  const sortedCategories = useMemo(() => {
+    const base = Object.keys(groupedEntries); // has Uncategorized + cats from entries
+    const withLocal = [...new Set([...base, ...localCategories])].sort();
+    // put Uncategorized last
+    return [...withLocal.filter((c) => c !== 'Uncategorized'), 'Uncategorized'];
+  }, [groupedEntries, localCategories]);
 
   // Stats
   const totalWords = useMemo(
@@ -122,6 +167,10 @@ export default function JournalPage() {
     return sorted[0]?.[0] ?? null;
   }, [allEntries]);
 
+  const totalPages  = viewMode === 'list' ? Math.ceil(filteredEntries.length / PAGE_SIZE) : 1;
+  const pageEntries = viewMode === 'list' ? filteredEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : filteredEntries;
+  useEffect(() => { setPage(0); }, [search, moodFilter, sortBy, categoryFilter]);
+
   const moodCounts = useMemo(() => {
     const c = {};
     allEntries.forEach((e) => { if (e.mood) c[e.mood] = (c[e.mood] ?? 0) + 1; });
@@ -138,6 +187,22 @@ export default function JournalPage() {
     }
   }, [form.content]);
 
+  // Auto-detect vocab words when content changes
+  useEffect(() => {
+    if (!modalOpen) return;
+    const detected = detectWordsInContent(form.content);
+    setForm((f) => {
+      // Merge: keep manually-toggled selections, add newly detected ones
+      const merged = [...new Set([...detected, ...f.usedWordIds])];
+      // Also remove any that were auto-detected before but are no longer in content
+      // (only remove if they weren't in the original entry's saved words)
+      const original = editEntry?.usedWords?.map((w) => w.id) ?? [];
+      const kept = merged.filter((id) => detected.includes(id) || original.includes(id) || !f._autoDetected?.includes(id));
+      return { ...f, usedWordIds: kept, _autoDetected: detected };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.content, modalOpen]);
+
   // CRUD
   const openCreate = () => {
     setEditEntry(null);
@@ -147,11 +212,16 @@ export default function JournalPage() {
   };
   const openEdit = (entry) => {
     setEditEntry(entry);
+    const savedWordIds = entry.usedWords?.map((w) => w.id) ?? [];
     setForm({
-      title:       entry.title,
-      content:     entry.content,
-      mood:        entry.mood || '',
-      usedWordIds: entry.usedWords?.map((w) => w.id) ?? [],
+      title:        entry.title,
+      content:      entry.content,
+      mood:         entry.mood || '',
+      articleUrl:   entry.articleUrl || '',
+      articleTitle: entry.articleTitle || '',
+      category:     entry.category || '',
+      usedWordIds:  savedWordIds,
+      _autoDetected: [],
     });
     setWordSearch('');
     setModalOpen(true);
@@ -163,12 +233,14 @@ export default function JournalPage() {
       return;
     }
     setSaving(true);
+    // Strip internal UI state before sending to API
+    const { _autoDetected, ...payload } = form;
     try {
       if (editEntry) {
-        await journalService.updateEntry(editEntry.id, form);
+        await journalService.updateEntry(editEntry.id, payload);
         toast.success('Entry updated!');
       } else {
-        await journalService.createEntry(form);
+        await journalService.createEntry(payload);
         toast.success('Entry created!');
       }
       setModalOpen(false);
@@ -190,6 +262,103 @@ export default function JournalPage() {
       toast.error('Failed to delete entry');
     }
   };
+  // Move an entry to a folder — optimistic update so the card moves instantly, no page reload
+  const moveToFolder = useCallback(async (entry, category) => {
+    const newCategory = category === 'Uncategorized' ? '' : category;
+    // 1. Snapshot for rollback
+    const prevEntries = allEntries;
+    // 2. Apply optimistic update immediately
+    setAllEntries((prev) =>
+      prev.map((e) => e.id === entry.id ? { ...e, category: newCategory } : e)
+    );
+    setMovingEntryId(entry.id);
+    try {
+      await journalService.updateEntry(entry.id, {
+        title:        entry.title,
+        content:      entry.content,
+        mood:         entry.mood || '',
+        articleUrl:   entry.articleUrl || '',
+        articleTitle: entry.articleTitle || '',
+        category:     newCategory,
+        usedWordIds:  entry.usedWords?.map((w) => w.id) ?? [],
+      });
+      toast.success(category === 'Uncategorized' ? 'Removed from folder' : `Moved to "${category}"`, { duration: 2000 });
+    } catch {
+      // Rollback on failure
+      setAllEntries(prevEntries);
+      toast.error('Failed to move entry');
+    } finally {
+      setMovingEntryId(null);
+    }
+  }, [allEntries]);
+
+  const saveLocalCategories = (cats) => {
+    setLocalCategories(cats);
+    localStorage.setItem('journal-folders', JSON.stringify(cats));
+  };
+
+  const addFolder = () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (allCategories.includes(name)) {
+      toast.error(`Folder "${name}" already exists`);
+      return;
+    }
+    saveLocalCategories([...localCategories, name]);
+    setNewFolderName('');
+    toast.success(`Folder "${name}" created — drag cards into it`);
+  };
+
+  const deleteFolder = (cat) => {
+    // Move all entries in this folder to Uncategorized first
+    const entriesToUpdate = allEntries.filter((e) => e.category === cat);
+    Promise.all(entriesToUpdate.map((entry) =>
+      journalService.updateEntry(entry.id, {
+        title:        entry.title,
+        content:      entry.content,
+        mood:         entry.mood || '',
+        articleUrl:   entry.articleUrl || '',
+        articleTitle: entry.articleTitle || '',
+        category:     '',
+        usedWordIds:  entry.usedWords?.map((w) => w.id) ?? [],
+      })
+    )).then(() => {
+      saveLocalCategories(localCategories.filter((c) => c !== cat));
+      fetchEntries();
+      toast.success(`Deleted folder "${cat}"`);
+    }).catch(() => toast.error('Failed to delete folder'));
+  };
+
+  const renameFolder = async (oldName, newName) => {
+    const trimmed = newName.trim();
+    setRenamingFolder(null);
+    if (!trimmed || trimmed === oldName) return;
+    if (allCategories.includes(trimmed)) {
+      toast.error(`Folder "${trimmed}" already exists`);
+      return;
+    }
+    const entriesToUpdate = allEntries.filter((e) => e.category === oldName);
+    try {
+      await Promise.all(entriesToUpdate.map((entry) =>
+        journalService.updateEntry(entry.id, {
+          title:        entry.title,
+          content:      entry.content,
+          mood:         entry.mood || '',
+          articleUrl:   entry.articleUrl || '',
+          articleTitle: entry.articleTitle || '',
+          category:     trimmed,
+          usedWordIds:  entry.usedWords?.map((w) => w.id) ?? [],
+        })
+      ));
+      const updated = localCategories.map((c) => (c === oldName ? trimmed : c));
+      saveLocalCategories(updated);
+      await fetchEntries();
+      toast.success(`Renamed to "${trimmed}"`);
+    } catch {
+      toast.error('Failed to rename folder');
+    }
+  };
+
   const toggleWord = (id) =>
     setForm((f) => ({
       ...f,
@@ -202,7 +371,7 @@ export default function JournalPage() {
   );
   const contentWc    = wc(form.content);
   const contentChars = form.content.length;
-  const isFiltered   = !!search.trim() || !!moodFilter;
+  const isFiltered   = !!search.trim() || !!moodFilter || !!categoryFilter;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -217,9 +386,11 @@ export default function JournalPage() {
             Reflect and practise vocabulary in context
           </p>
         </div>
-        <Button onClick={openCreate} className="flex-shrink-0">
-          <PlusIcon className="h-4 w-4" /> New Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openCreate} className="flex-shrink-0">
+            <PlusIcon className="h-4 w-4" /> New Entry
+          </Button>
+        </div>
       </div>
 
       {/* ── Rich stats bar ───────────────────────────────────── */}
@@ -242,10 +413,10 @@ export default function JournalPage() {
             highlight={streak >= 3}
           />
           <StatCard
-            emoji={dominantMoodMeta ? dominantMoodMeta.label.split(' ')[0] : '💡'}
+            emoji={dominantMoodMeta ? dominantMoodMeta.label.split(' ')[0] : '�'}
             label="Avg entry"
             value={`${avgWords} words`}
-            sub={dominantMood ? `Mostly ${dominantMoodMeta?.label.split(' ').slice(1).join(' ')}` : null}
+            sub={topWord ? `🏆 ${topWord}` : null}
           />
         </div>
       )}
@@ -311,6 +482,45 @@ export default function JournalPage() {
         </div>
       )}
 
+      {/* ── View mode toggle ─────────────────────────────────── */}
+      {!loading && allEntries.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">View:</span>
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
+                ${viewMode === 'list'
+                  ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            >
+              <ListBulletIcon className="h-4 w-4" />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
+                ${viewMode === 'timeline'
+                  ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Timeline
+            </button>
+            <button
+              onClick={() => setViewMode('folders')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
+                ${viewMode === 'folders'
+                  ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'}`}
+            >
+              <FolderIcon className="h-4 w-4" />
+              Folders
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Mood filter chips ────────────────────────────────── */}
       {!loading && allEntries.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -349,6 +559,34 @@ export default function JournalPage() {
         </div>
       )}
 
+      {/* ── Category filter chips ────────────────────────────── */}
+      {!loading && allCategories.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">📁 Category:</span>
+          <button
+            onClick={() => setCategoryFilter('')}
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
+              ${!categoryFilter
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+          >
+            All
+          </button>
+          {allCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter((f) => (f === cat ? '' : cat))}
+              className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors
+                ${categoryFilter === cat
+                  ? 'bg-primary-600 text-white border-primary-600'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Entry grid ──────────────────────────────────────── */}
       {loading ? (
         <div className="flex h-48 items-center justify-center">
@@ -361,7 +599,7 @@ export default function JournalPage() {
           <p className="text-3xl mb-2">🔍</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm">No entries match your filters.</p>
           <button
-            onClick={() => { setSearch(''); setMoodFilter(''); }}
+            onClick={() => { setSearch(''); setMoodFilter(''); setCategoryFilter(''); }}
             className="mt-3 text-xs text-primary-600 dark:text-primary-400 underline"
           >
             Clear filters
@@ -374,22 +612,238 @@ export default function JournalPage() {
               {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''}
             </p>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pageEntries.map((e) => (
-              <JournalEntryCard
-                key={e.id}
-                entry={e}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-                onView={setViewEntry}
-              />
-            ))}
-          </div>
+
+          {viewMode === 'list' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pageEntries.map((e) => (
+                <JournalEntryCard
+                  key={e.id}
+                  entry={e}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onView={setViewEntry}
+                  allCategories={allCategories}
+                  onMoveToFolder={moveToFolder}
+                  isMoving={movingEntryId === e.id}
+                />
+              ))}
+            </div>
+          )}
+
+          {viewMode === 'timeline' && (() => {
+            const today     = new Date();
+            const yesterday = new Date(Date.now() - 86400000);
+            const groups    = {};
+            const groupOrder = [];
+            filteredEntries.forEach((e) => {
+              const d = new Date(e.createdAt);
+              let label;
+              if (d.toDateString() === today.toDateString()) label = 'Today';
+              else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday';
+              else label = d.toLocaleDateString('en-US', {
+                month: 'long', day: 'numeric',
+                ...(d.getFullYear() !== today.getFullYear() && { year: 'numeric' }),
+              });
+              if (!groups[label]) { groups[label] = []; groupOrder.push(label); }
+              groups[label].push(e);
+            });
+            return (
+              <div className="space-y-8">
+                {groupOrder.map((dateLabel) => (
+                  <div key={dateLabel}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        {dateLabel}
+                      </span>
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+                    </div>
+                    <div className="space-y-4 pl-1">
+                      {groups[dateLabel].map((e, i) => (
+                        <div key={e.id} className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <div className="w-2.5 h-2.5 bg-primary-500 rounded-full flex-shrink-0 mt-1.5" />
+                            {i < groups[dateLabel].length - 1 && (
+                              <div className="w-0.5 flex-1 min-h-[1.5rem] bg-gray-200 dark:bg-gray-700 mt-1" />
+                            )}
+                          </div>
+                          <div className="flex-1 pb-4">
+                            <JournalEntryCard entry={e} onEdit={openEdit} onDelete={handleDelete} onView={setViewEntry} allCategories={allCategories} onMoveToFolder={moveToFolder} isMoving={movingEntryId === e.id} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {viewMode === 'folders' && (
+            <DragDropContext onDragEnd={(result) => {
+              if (!result.destination) return;
+              const sourceCat = result.source.droppableId;
+              const destCat   = result.destination.droppableId;
+              if (sourceCat === destCat) return;
+              const entry = filteredEntries.find(e => e.id.toString() === result.draggableId);
+              if (entry) moveToFolder(entry, destCat);
+            }}>
+              {/* Inline folder creator */}
+              <div className="flex items-center gap-2 mb-6">
+                <FolderIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="New folder name…"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFolder(); } }}
+                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600
+                             bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                             placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <Button size="sm" onClick={addFolder} disabled={!newFolderName.trim()}>
+                  + Create Folder
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {sortedCategories.map((cat) => (
+                  <Droppable key={cat} droppableId={cat}>
+                    {(provided, snapshot) => (
+                      <div className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden
+                        ${snapshot.isDraggingOver
+                          ? 'border-indigo-400 dark:border-indigo-500 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/30'
+                          : 'border-gray-200 dark:border-gray-700'}`}>
+
+                        {/* Folder header */}
+                        <div className={`flex items-center gap-2 px-4 py-3 border-b transition-colors
+                          ${snapshot.isDraggingOver
+                            ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700'
+                            : 'bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700'}`}>
+                          <FolderIcon className={`h-4 w-4 flex-shrink-0 transition-colors ${snapshot.isDraggingOver ? 'text-indigo-500' : 'text-indigo-400'}`} />
+
+                          {renamingFolder === cat ? (
+                            <form
+                              className="flex-1 flex gap-2"
+                              onSubmit={(e) => { e.preventDefault(); renameFolder(cat, renameValue); }}
+                            >
+                              <input
+                                autoFocus
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Escape') setRenamingFolder(null); }}
+                                className="flex-1 px-2 py-1 text-sm rounded-lg border border-indigo-300 dark:border-indigo-600
+                                           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                                           focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                              />
+                              <button type="submit" className="text-xs px-2.5 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium">Save</button>
+                              <button type="button" onClick={() => setRenamingFolder(null)} className="text-xs px-2.5 py-1 text-gray-500 hover:text-gray-700 rounded-lg">Cancel</button>
+                            </form>
+                          ) : (
+                            <>
+                              <span className={`text-sm font-semibold flex-1 transition-colors ${snapshot.isDraggingOver ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-800 dark:text-gray-100'}`}>
+                                {cat}
+                                <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+                                  {groupedEntries[cat]?.length ?? 0} {(groupedEntries[cat]?.length ?? 0) === 1 ? 'entry' : 'entries'}
+                                </span>
+                              </span>
+                              {cat !== 'Uncategorized' && (
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => { setRenamingFolder(cat); setRenameValue(cat); }}
+                                    title="Rename folder"
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                                  >
+                                    <PencilIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteFolder(cat)}
+                                    title="Delete folder"
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                                  >
+                                    <TrashIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Drop zone — this is the actual Droppable target */}
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`p-3 min-h-[80px] transition-colors duration-200
+                            ${snapshot.isDraggingOver
+                              ? 'bg-indigo-50/60 dark:bg-indigo-900/10'
+                              : 'bg-white dark:bg-gray-800'}`}
+                        >
+                          {/* Empty state */}
+                          {(groupedEntries[cat]?.length ?? 0) === 0 && (
+                            <div className={`flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed transition-all
+                              ${snapshot.isDraggingOver
+                                ? 'border-indigo-400 text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-600'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500'}`}>
+                              {snapshot.isDraggingOver
+                                ? <><span className="text-2xl mb-1">📂</span><span className="text-sm font-medium">Release to drop here</span></>
+                                : <><span className="text-lg mb-1">📁</span><span className="text-xs">Drag cards here to organise</span></>
+                              }
+                            </div>
+                          )}
+
+                          {/* Cards grid */}
+                          {(groupedEntries[cat]?.length ?? 0) > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {groupedEntries[cat].map((e, index) => (
+                                <Draggable key={e.id} draggableId={e.id.toString()} index={index}>
+                                  {(dragProvided, dragSnapshot) => (
+                                    <div
+                                      ref={dragProvided.innerRef}
+                                      {...dragProvided.draggableProps}
+                                      className={`transition-transform duration-150 ${dragSnapshot.isDragging ? 'rotate-1 scale-105 shadow-2xl z-50' : ''}`}
+                                    >
+                                      {/* Drag handle bar */}
+                                      <div
+                                        {...dragProvided.dragHandleProps}
+                                        className="flex items-center justify-center gap-1.5 py-1.5 mb-1.5 rounded-lg
+                                                   cursor-grab active:cursor-grabbing select-none
+                                                   bg-gray-100 hover:bg-indigo-100 dark:bg-gray-700 dark:hover:bg-indigo-900/40
+                                                   text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400
+                                                   border border-transparent hover:border-indigo-200 dark:hover:border-indigo-700
+                                                   transition-colors"
+                                        title="Drag to move to another folder"
+                                      >
+                                        <Bars3Icon className="h-3.5 w-3.5" />
+                                        <span className="text-[11px] font-medium">hold &amp; drag to move</span>
+                                      </div>
+                                      <JournalEntryCard
+                                        entry={e}
+                                        onEdit={openEdit}
+                                        onDelete={handleDelete}
+                                        onView={setViewEntry}
+                                        allCategories={allCategories}
+                                        onMoveToFolder={moveToFolder}
+                                        isMoving={movingEntryId === e.id}
+                                      />
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                            </div>
+                          )}
+                          {provided.placeholder}
+                        </div>
+                      </div>
+                    )}
+                  </Droppable>
+                ))}
+              </div>
+            </DragDropContext>
+          )}
         </>
       )}
 
       {/* ── Pagination ──────────────────────────────────────── */}
-      {totalPages > 1 && (
+      {viewMode === 'list' && totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <Button size="sm" variant="secondary" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
             ← Prev
@@ -470,6 +924,63 @@ export default function JournalPage() {
             </div>
           </div>
 
+          {/* Article URL */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Article URL (optional)
+            </label>
+            <input
+              type="url"
+              placeholder="https://example.com/article"
+              value={form.articleUrl}
+              onChange={(e) => setForm((f) => ({ ...f, articleUrl: e.target.value }))}
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          {/* Article Title */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Article Title (optional)
+            </label>
+            <input
+              type="text"
+              placeholder="Title of the article"
+              value={form.articleTitle}
+              onChange={(e) => setForm((f) => ({ ...f, articleTitle: e.target.value }))}
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Category (optional)
+            </label>
+            <input
+              type="text"
+              list="journal-categories"
+              placeholder="e.g. Tech, Politics, Fiction…"
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <datalist id="journal-categories">
+              {allCategories.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Type a new category or pick an existing one
+            </p>
+          </div>
+
           {/* Content */}
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -509,9 +1020,14 @@ export default function JournalPage() {
                 <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
                   <BookOpenIcon className="h-4 w-4 text-primary-500" />
                   Vocabulary used
-                  {form.usedWordIds.length > 0 && (
+                  {form._autoDetected?.length > 0 && (
+                    <span className="ml-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold" title="Auto-detected from your content">
+                      ✨ {form._autoDetected.length} auto-detected
+                    </span>
+                  )}
+                  {form.usedWordIds.filter(id => !form._autoDetected?.includes(id)).length > 0 && (
                     <span className="ml-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
-                      {form.usedWordIds.length} selected
+                      +{form.usedWordIds.filter(id => !form._autoDetected?.includes(id)).length} manual
                     </span>
                   )}
                 </label>
@@ -541,19 +1057,27 @@ export default function JournalPage() {
                 {filteredWords.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No words match "{wordSearch}"</p>
                 ) : (
-                  filteredWords.map((w) => (
-                    <button
-                      key={w.id}
-                      type="button"
-                      onClick={() => toggleWord(w.id)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all
-                        ${form.usedWordIds.includes(w.id)
-                          ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                          : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
-                    >
-                      {w.word}
-                    </button>
-                  ))
+                  filteredWords.map((w) => {
+                    const isSelected  = form.usedWordIds.includes(w.id);
+                    const isAutoFound = form._autoDetected?.includes(w.id);
+                    return (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() => toggleWord(w.id)}
+                        title={isAutoFound ? `"${w.word}" found in your content` : undefined}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all
+                          ${isSelected && isAutoFound
+                            ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                            : isSelected
+                            ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                            : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+                      >
+                        {isAutoFound && isSelected && <span className="mr-0.5 opacity-80">✨</span>}
+                        {w.word}
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>

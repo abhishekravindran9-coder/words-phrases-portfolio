@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@headlessui/react": "^1.7.18",
+    "@hello-pangea/dnd": "^18.0.1",
     "@heroicons/react": "^2.1.1",
     "axios": "^1.6.7",
     "chart.js": "^4.4.2",
@@ -26,11 +27,22 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": ["react-app", "react-app/jest"]
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "proxy": "http://localhost:8080"
 }

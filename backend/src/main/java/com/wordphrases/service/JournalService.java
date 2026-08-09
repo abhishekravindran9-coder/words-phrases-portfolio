@@ -54,6 +54,9 @@ public class JournalService {
                 .title(request.getTitle())
                 .content(request.getContent())
                 .mood(request.getMood())
+                .articleUrl(request.getArticleUrl())
+                .articleTitle(request.getArticleTitle())
+                .category(request.getCategory())
                 .usedWords(words)
                 .build();
 
@@ -69,6 +72,9 @@ public class JournalService {
         entry.setTitle(request.getTitle());
         entry.setContent(request.getContent());
         if (request.getMood() != null) entry.setMood(request.getMood());
+        entry.setArticleUrl(request.getArticleUrl());
+        entry.setArticleTitle(request.getArticleTitle());
+        entry.setCategory(request.getCategory());
         entry.setUsedWords(resolveWords(request.getUsedWordIds(), user));
 
         return toResponse(journalEntryRepository.save(entry));
@@ -104,6 +110,9 @@ public class JournalService {
                 .title(entry.getTitle())
                 .content(entry.getContent())
                 .mood(entry.getMood())
+                .articleUrl(entry.getArticleUrl())
+                .articleTitle(entry.getArticleTitle())
+                .category(entry.getCategory())
                 .usedWords(wordSummaries)
                 .createdAt(entry.getCreatedAt())
                 .updatedAt(entry.getUpdatedAt())

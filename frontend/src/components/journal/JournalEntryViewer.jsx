@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo } from 'react';
 import {
   XMarkIcon, PencilIcon, CalendarDaysIcon, BookOpenIcon,
-  ClockIcon, DocumentTextIcon,
+  ClockIcon, DocumentTextIcon, SpeakerWaveIcon, PauseIcon, StopIcon,
 } from '@heroicons/react/24/outline';
 import { formatDate } from '../../utils/helpers';
+import { useSpeech } from '../../hooks/useSpeech';
 
 const MOOD_META = {
   excited:    { emoji: '🤩', label: 'Excited',    bg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',    bar: 'bg-amber-400' },
@@ -61,15 +62,21 @@ function HighlightedContent({ content, vocabWords }) {
  * Full-content slide-over for reading a journal entry.
  */
 export default function JournalEntryViewer({ entry, onClose, onEdit }) {
+  const { speak, stop, pause, resume, speaking, paused, supported } = useSpeech();
+
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e) => { if (e.key === 'Escape') { stop(); onClose(); } };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, stop]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    // Stop speech when viewer unmounts
+    return () => {
+      document.body.style.overflow = '';
+      window.speechSynthesis.cancel();
+    };
   }, []);
 
   if (!entry) return null;
@@ -126,6 +133,46 @@ export default function JournalEntryViewer({ entry, onClose, onEdit }) {
             </div>
 
             <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Read aloud controls */}
+              {supported && (
+                <>
+                  {!speaking ? (
+                    <button
+                      onClick={() => speak(`${entry.title}. ${entry.content}`)}
+                      title="Read aloud"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+                                 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700
+                                 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                    >
+                      <SpeakerWaveIcon className="h-3.5 w-3.5" />
+                      Read
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={paused ? resume : pause}
+                        title={paused ? 'Resume' : 'Pause'}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+                                   text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-700
+                                   bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 transition-colors"
+                      >
+                        {paused
+                          ? <SpeakerWaveIcon className="h-3.5 w-3.5 animate-pulse" />
+                          : <PauseIcon className="h-3.5 w-3.5" />}
+                        {paused ? 'Resume' : 'Pause'}
+                      </button>
+                      <button
+                        onClick={stop}
+                        title="Stop"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50
+                                   dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <StopIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
               {onEdit && (
                 <button
                   onClick={() => { onClose(); onEdit(entry); }}

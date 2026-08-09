@@ -48,6 +48,18 @@ public class JournalEntry {
     @Column(length = 50)
     private String mood;
 
+    /** Article URL if this entry is based on an article. */
+    @Column(name = "article_url", length = 500)
+    private String articleUrl;
+
+    /** Article title if applicable. */
+    @Column(name = "article_title", length = 300)
+    private String articleTitle;
+
+    /** Category for organization, e.g. "Tech", "Politics". */
+    @Column(length = 100)
+    private String category;
+
     /** Vocabulary words explicitly used or referenced in this entry. */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
