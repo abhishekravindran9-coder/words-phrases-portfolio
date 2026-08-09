@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   XMarkIcon, CheckBadgeIcon, CalendarDaysIcon,
-  ArrowPathIcon, BoltIcon, PencilIcon, SpeakerWaveIcon,
+  ArrowPathIcon, BoltIcon, PencilIcon, SpeakerWaveIcon, PauseIcon, StopIcon,
 } from '@heroicons/react/24/outline';
 import { useSpeech } from '../../hooks/useSpeech';
 
@@ -10,19 +10,31 @@ import { useSpeech } from '../../hooks/useSpeech';
  * Slides in from the right on desktop; full-screen sheet on mobile.
  */
 export default function WordDetailModal({ word, onClose, onEdit }) {
-  const { speak, speaking, supported: speechSupported } = useSpeech();
+  const { speak, stop, pause, resume, speaking, paused, supported: speechSupported } = useSpeech();
 
-  // Close on Escape key
+  // Build the read-aloud text: word + definition + first example sentence
+  const readText = [
+    word.word,
+    word.definition ? `Definition: ${word.definition}` : '',
+    word.exampleSentence?.split('\n\n')[0]
+      ? `Example: ${word.exampleSentence.split('\n\n')[0]}`
+      : '',
+  ].filter(Boolean).join('. ');
+
+  // Close on Escape, stop speech
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e) => { if (e.key === 'Escape') { stop(); onClose(); } };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, stop]);
 
-  // Prevent body scroll while open
+  // Prevent body scroll while open; cancel speech on unmount
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      window.speechSynthesis.cancel();
+    };
   }, []);
 
   if (!word) return null;
@@ -88,20 +100,49 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
             )}
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {speechSupported && (
-              <button
-                onClick={() => speak(word.word)}
-                className={`p-2 rounded-lg transition-colors ${
-                  speaking
-                    ? 'text-primary-600 bg-primary-50 dark:bg-gray-700'
-                    : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-gray-700'
-                }`}
-                aria-label="Pronounce"
-                title="Pronounce"
-              >
-                <SpeakerWaveIcon className="h-5 w-5" />
-              </button>
+              <>
+                {!speaking ? (
+                  <button
+                    onClick={() => speak(readText)}
+                    title="Read aloud"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+                               text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700
+                               hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  >
+                    <SpeakerWaveIcon className="h-4 w-4" />
+                    Read
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={paused ? resume : pause}
+                      title={paused ? 'Resume' : 'Pause'}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                                 text-white bg-primary-600 hover:bg-primary-700
+                                 shadow-sm shadow-primary-200 dark:shadow-primary-900/40
+                                 active:scale-95 transition-all"
+                    >
+                      {paused
+                        ? <SpeakerWaveIcon className="h-4 w-4" />
+                        : <PauseIcon className="h-4 w-4" />}
+                      {paused ? 'Resume' : 'Pause'}
+                    </button>
+                    <button
+                      onClick={stop}
+                      title="Stop"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                                 text-white bg-red-500 hover:bg-red-600
+                                 shadow-sm shadow-red-200 dark:shadow-red-900/40
+                                 active:scale-95 transition-all"
+                    >
+                      <StopIcon className="h-4 w-4" />
+                      Stop
+                    </button>
+                  </>
+                )}
+              </>
             )}
             {onEdit && (
               <button

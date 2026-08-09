@@ -158,22 +158,26 @@ export default function JournalEntryViewer({ entry, onClose, onEdit }) {
                       <button
                         onClick={paused ? resume : pause}
                         title={paused ? 'Resume' : 'Pause'}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
-                                   text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-700
-                                   bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                                   text-white bg-primary-600 hover:bg-primary-700
+                                   shadow-sm shadow-primary-200 dark:shadow-primary-900/40
+                                   active:scale-95 transition-all"
                       >
                         {paused
-                          ? <SpeakerWaveIcon className="h-3.5 w-3.5 animate-pulse" />
+                          ? <SpeakerWaveIcon className="h-3.5 w-3.5" />
                           : <PauseIcon className="h-3.5 w-3.5" />}
                         {paused ? 'Resume' : 'Pause'}
                       </button>
                       <button
                         onClick={stop}
                         title="Stop"
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50
-                                   dark:hover:bg-red-900/20 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+                                   text-white bg-red-500 hover:bg-red-600
+                                   shadow-sm shadow-red-200 dark:shadow-red-900/40
+                                   active:scale-95 transition-all"
                       >
                         <StopIcon className="h-3.5 w-3.5" />
+                        Stop
                       </button>
                     </>
                   )}
