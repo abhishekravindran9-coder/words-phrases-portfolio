@@ -74,6 +74,7 @@ export default function JournalPage() {
   const [renameValue,    setRenameValue]    = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [movingEntryId,  setMovingEntryId]  = useState(null); // id of card being moved to folder
+  const [showFilters,    setShowFilters]    = useState(false);
 
   // Detect which vocab words appear in content (whole-word, case-insensitive)
   const detectWordsInContent = useCallback((content) => {
@@ -260,20 +261,46 @@ export default function JournalPage() {
       setSaving(false);
     }
   };
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this journal entry?')) return;
-    const prevEntries = allEntries;
+  const handleDelete = (id) => {
+    const entry = allEntries.find((e) => e.id === id);
+    if (!entry) return;
+    // Instant optimistic remove — no native confirm dialog
     setAllEntries((prev) => prev.filter((e) => e.id !== id));
     setTotalEntries((n) => n - 1);
     if (viewEntry?.id === id) setViewEntry(null);
-    try {
-      await journalService.deleteEntry(id);
-      toast.success('Entry deleted');
-    } catch {
-      setAllEntries(prevEntries);
-      setTotalEntries((n) => n + 1);
-      toast.error('Failed to delete entry');
-    }
+    // Keep a 5-second undo window before actually hitting the API
+    let undone = false;
+    const deleteTimer = setTimeout(async () => {
+      if (undone) return;
+      try {
+        await journalService.deleteEntry(id);
+      } catch {
+        setAllEntries((prev) => [entry, ...prev].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+        setTotalEntries((n) => n + 1);
+        toast.error('Delete failed — entry restored');
+      }
+    }, 5000);
+    toast(
+      (t) => (
+        <span className="flex items-center gap-3 text-sm">
+          🗑️ Entry deleted
+          <button
+            className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+            onClick={() => {
+              undone = true;
+              clearTimeout(deleteTimer);
+              toast.dismiss(t.id);
+              setAllEntries((prev) => [entry, ...prev].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+              setTotalEntries((n) => n + 1);
+              toast.success('Restored!', { duration: 2000 });
+            }}
+          >
+            Undo
+          </button>
+        </span>
+      ),
+      { duration: 5000, id: `delete-${id}` },
+    );
   };
   // Move an entry to a folder — optimistic update so the card moves instantly, no page reload
   const moveToFolder = useCallback(async (entry, category) => {
@@ -389,6 +416,20 @@ export default function JournalPage() {
   const contentWc    = wc(form.content);
   const contentChars = form.content.length;
   const isFiltered   = !!search.trim() || !!moodFilter || !!categoryFilter;
+  const activeFilterCount = (moodFilter ? 1 : 0) + (categoryFilter ? 1 : 0);
+
+  // Auto-expand filter panel when a filter becomes active
+  useEffect(() => { if (moodFilter || categoryFilter) setShowFilters(true); }, [moodFilter, categoryFilter]);
+
+  // Keyboard shortcut: ⌘/Ctrl+N → new entry
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') { e.preventDefault(); openCreate(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -496,6 +537,23 @@ export default function JournalPage() {
               </div>
             )}
           </div>
+
+          {/* Filter toggle button */}
+          <button
+            onClick={() => setShowFilters((f) => !f)}
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm rounded-xl border transition-colors whitespace-nowrap
+              ${(showFilters || activeFilterCount > 0)
+                ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 dark:border-primary-700'
+                : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+          >
+            <FunnelIcon className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-primary-600 text-white rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
@@ -538,111 +596,115 @@ export default function JournalPage() {
         </div>
       )}
 
-      {/* ── Mood filter chips ────────────────────────────────── */}
-      {!loading && allEntries.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mr-1">
-            <FunnelIcon className="h-3.5 w-3.5" /> Mood:
-          </span>
-          <button
-            onClick={() => setMoodFilter('')}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
-              ${!moodFilter
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
-          >
-            All
-          </button>
-          {MOOD_OPTIONS.map((m) => {
-            const count = moodCounts[m.value] ?? 0;
-            if (count === 0) return null;
-            return (
+      {/* ── Collapsible filter panel ─────────────────────────── */}
+      {!loading && allEntries.length > 0 && showFilters && (
+        <div className="rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 px-4 py-3.5 space-y-3">
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Mood</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
-                key={m.value}
-                onClick={() => setMoodFilter((f) => (f === m.value ? '' : m.value))}
-                title={`${m.label} (${count})`}
-                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border transition-colors
-                  ${moodFilter === m.value
-                    ? 'bg-primary-600 text-white border-primary-600'
-                    : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
-              >
-                {m.label.split(' ')[0]}
-                <span className={`text-[10px] ${moodFilter === m.value ? 'opacity-80' : 'opacity-50'}`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Category filter chips ────────────────────────────── */}
-      {!loading && allCategories.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">📁 Category:</span>
-          <button
-            onClick={() => setCategoryFilter('')}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
-              ${!categoryFilter
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
-          >
-            All
-          </button>
-          {allCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter((f) => (f === cat ? '' : cat))}
-              className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors
-                ${categoryFilter === cat
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
-            >
-              {cat}
-            </button>
-          ))}
+                onClick={() => setMoodFilter('')}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
+                  ${!moodFilter ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+              >All</button>
+              {MOOD_OPTIONS.map((m) => {
+                const count = moodCounts[m.value] ?? 0;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={m.value}
+                    onClick={() => setMoodFilter((f) => (f === m.value ? '' : m.value))}
+                    title={`${m.label} (${count})`}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border transition-colors
+                      ${moodFilter === m.value ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+                  >
+                    {m.label.split(' ')[0]}
+                    <span className={`text-[10px] ${moodFilter === m.value ? 'opacity-80' : 'opacity-50'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {allCategories.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">📁 Category</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setCategoryFilter('')}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
+                    ${!categoryFilter ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+                >All</button>
+                {allCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter((f) => (f === cat ? '' : cat))}
+                    className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors
+                      ${categoryFilter === cat ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
+                  >{cat}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {activeFilterCount > 0 && (
+            <div className="flex justify-end pt-1 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => { setMoodFilter(''); setCategoryFilter(''); }}
+                className="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 font-medium transition-colors"
+              >✕ Clear {activeFilterCount} active filter{activeFilterCount !== 1 ? 's' : ''}</button>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Entry grid ──────────────────────────────────────── */}
       {loading ? (
-        <div className="flex h-48 items-center justify-center">
-          <LoadingSpinner size="lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => <JournalCardSkeleton key={i} />)}
         </div>
       ) : allEntries.length === 0 ? (
         <EmptyJournal onWrite={openCreate} />
       ) : pageEntries.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-3xl mb-2">🔍</p>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">No entries match your filters.</p>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="text-4xl mb-3">🔍</div>
+          <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">No entries found</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Try adjusting your search or filters.</p>
           <button
-            onClick={() => { setSearch(''); setMoodFilter(''); setCategoryFilter(''); }}
-            className="mt-3 text-xs text-primary-600 dark:text-primary-400 underline"
+            onClick={() => { setSearch(''); setMoodFilter(''); setCategoryFilter(''); setShowFilters(false); }}
+            className="mt-4 text-xs font-medium px-4 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
           >
-            Clear filters
+            Clear all filters
           </button>
         </div>
       ) : (
         <>
           {isFiltered && (
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''}
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              {filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''} found
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => { setMoodFilter(''); setCategoryFilter(''); }}
+                  className="ml-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 underline"
+                >
+                  Clear
+                </button>
+              )}
             </p>
           )}
 
           {viewMode === 'list' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 journal-cards">
               {pageEntries.map((e) => (
-                <JournalEntryCard
-                  key={e.id}
-                  entry={e}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                  onView={setViewEntry}
-                  allCategories={allCategories}
-                  onMoveToFolder={moveToFolder}
-                  isMoving={movingEntryId === e.id}
-                />
+                <div key={e.id} className="animate-fade-in-up">
+                  <JournalEntryCard
+                    entry={e}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onView={setViewEntry}
+                    allCategories={allCategories}
+                    onMoveToFolder={moveToFolder}
+                    isMoving={movingEntryId === e.id}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -1171,6 +1233,27 @@ function MoodBreakdownBar({ moodCounts, total }) {
             {s.label.split(' ')[0]} {s.count}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function JournalCardSkeleton() {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 animate-pulse">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-5 w-16 bg-gray-100 dark:bg-gray-700 rounded-full" />
+        <div className="h-4 w-28 bg-gray-100 dark:bg-gray-700 rounded-full" />
+      </div>
+      <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-600 rounded-lg mb-3" />
+      <div className="space-y-2 mb-4">
+        <div className="h-3.5 w-full bg-gray-100 dark:bg-gray-700 rounded" />
+        <div className="h-3.5 w-5/6 bg-gray-100 dark:bg-gray-700 rounded" />
+        <div className="h-3.5 w-4/6 bg-gray-100 dark:bg-gray-700 rounded" />
+      </div>
+      <div className="flex justify-between pt-3 border-t border-gray-50 dark:border-gray-700">
+        <div className="h-3 w-20 bg-gray-100 dark:bg-gray-700 rounded" />
+        <div className="h-3 w-12 bg-gray-100 dark:bg-gray-700 rounded" />
       </div>
     </div>
   );

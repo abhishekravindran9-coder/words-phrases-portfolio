@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, relativeDate } from '../../utils/helpers';
 import { PencilIcon, TrashIcon, BookOpenIcon, ClockIcon, FolderIcon } from '@heroicons/react/24/outline';
 
 const MOOD_META = {
@@ -107,7 +107,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
       )}
       {/* Mood colour strip on the left edge */}
       {mood && (
-        <div className={`absolute left-0 top-0 bottom-0 w-1 ${mood.bar}`} />
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${mood.bar} rounded-l-2xl`} />
       )}
 
       <div className="pl-5 pr-4 pt-4 pb-4">
@@ -123,8 +123,9 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
                 📓 Journal
               </span>
             )}
-            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate">
-              {formatDate(entry.createdAt)}
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 truncate leading-tight">
+              <span className="font-medium text-gray-500 dark:text-gray-400">{relativeDate(entry.createdAt)}</span>
+              <span className="hidden sm:inline ml-1 opacity-50">· {formatDate(entry.createdAt)}</span>
             </span>
             {entry.category && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium flex-shrink-0 max-w-[80px] truncate">
@@ -133,8 +134,8 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
             )}
           </div>
 
-          {/* Actions — revealed on hover */}
-          <div className="flex gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Actions — always faintly visible on touch, revealed on hover */}
+          <div className="flex gap-0.5 flex-shrink-0 opacity-20 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
             {onMoveToFolder && allCategories.length > 0 && (
               <MoveToFolderMenu entry={entry} allCategories={allCategories} onMoveToFolder={onMoveToFolder} />
             )}

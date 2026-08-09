@@ -116,6 +116,12 @@ export default function JournalEntryViewer({ entry, onClose, onEdit }) {
                   {mood.emoji} {mood.label}
                 </span>
               )}
+              {entry.category && (
+                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full mb-2 ml-1.5
+                                 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium">
+                  📁 {entry.category}
+                </span>
+              )}
               <h2 className="text-xl font-extrabold text-gray-900 dark:text-gray-100 break-words leading-snug">
                 {entry.title}
               </h2>
