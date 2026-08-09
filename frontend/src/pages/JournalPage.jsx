@@ -128,15 +128,17 @@ export default function JournalPage() {
 
   const groupedEntries = useMemo(() => {
     const groups = {};
-    // Seed local (empty) folders so they appear in folders view
-    localCategories.forEach((cat) => { groups[cat] = []; });
+    // Seed local (empty) folders only when not filtering by a specific category
+    if (!categoryFilter) {
+      localCategories.forEach((cat) => { groups[cat] = []; });
+    }
     filteredEntries.forEach((e) => {
       const cat = e.category || 'Uncategorized';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(e);
     });
     return groups;
-  }, [filteredEntries, localCategories]);
+  }, [filteredEntries, localCategories, categoryFilter]);
 
   // All known categories: from entries + locally created empty folders
   const allCategories = useMemo(() => {
@@ -145,11 +147,15 @@ export default function JournalPage() {
   }, [allEntries, localCategories]);
 
   const sortedCategories = useMemo(() => {
-    const base = Object.keys(groupedEntries); // has Uncategorized + cats from entries
-    const withLocal = [...new Set([...base, ...localCategories])].sort();
-    // put Uncategorized last
-    return [...withLocal.filter((c) => c !== 'Uncategorized'), 'Uncategorized'];
-  }, [groupedEntries, localCategories]);
+    const base = Object.keys(groupedEntries);
+    // When filtering by category, only show matching folders — don't pad with unrelated empty folders
+    const withLocal = categoryFilter
+      ? base
+      : [...new Set([...base, ...localCategories])].sort();
+    const sorted = withLocal.filter((c) => c !== 'Uncategorized').sort();
+    if (withLocal.includes('Uncategorized')) sorted.push('Uncategorized');
+    return sorted;
+  }, [groupedEntries, localCategories, categoryFilter]);
 
   // Stats
   const totalWords = useMemo(
@@ -237,14 +243,17 @@ export default function JournalPage() {
     const { _autoDetected, ...payload } = form;
     try {
       if (editEntry) {
-        await journalService.updateEntry(editEntry.id, payload);
+        const updated = await journalService.updateEntry(editEntry.id, payload);
+        setAllEntries((prev) => prev.map((e) => e.id === editEntry.id ? updated : e));
+        if (viewEntry?.id === editEntry.id) setViewEntry(updated);
         toast.success('Entry updated!');
       } else {
-        await journalService.createEntry(payload);
+        const created = await journalService.createEntry(payload);
+        setAllEntries((prev) => [created, ...prev]);
+        setTotalEntries((n) => n + 1);
         toast.success('Entry created!');
       }
       setModalOpen(false);
-      fetchEntries();
     } catch {
       toast.error('Failed to save entry');
     } finally {
@@ -253,12 +262,16 @@ export default function JournalPage() {
   };
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this journal entry?')) return;
+    const prevEntries = allEntries;
+    setAllEntries((prev) => prev.filter((e) => e.id !== id));
+    setTotalEntries((n) => n - 1);
+    if (viewEntry?.id === id) setViewEntry(null);
     try {
       await journalService.deleteEntry(id);
       toast.success('Entry deleted');
-      if (viewEntry?.id === id) setViewEntry(null);
-      fetchEntries();
     } catch {
+      setAllEntries(prevEntries);
+      setTotalEntries((n) => n + 1);
       toast.error('Failed to delete entry');
     }
   };
@@ -310,8 +323,12 @@ export default function JournalPage() {
   };
 
   const deleteFolder = (cat) => {
-    // Move all entries in this folder to Uncategorized first
     const entriesToUpdate = allEntries.filter((e) => e.category === cat);
+    // Optimistic: update state immediately
+    setAllEntries((prev) => prev.map((e) => e.category === cat ? { ...e, category: '' } : e));
+    saveLocalCategories(localCategories.filter((c) => c !== cat));
+    toast.success(`Deleted folder "${cat}"`);
+    // Background API updates (best-effort)
     Promise.all(entriesToUpdate.map((entry) =>
       journalService.updateEntry(entry.id, {
         title:        entry.title,
@@ -322,11 +339,7 @@ export default function JournalPage() {
         category:     '',
         usedWordIds:  entry.usedWords?.map((w) => w.id) ?? [],
       })
-    )).then(() => {
-      saveLocalCategories(localCategories.filter((c) => c !== cat));
-      fetchEntries();
-      toast.success(`Deleted folder "${cat}"`);
-    }).catch(() => toast.error('Failed to delete folder'));
+    )).catch(() => toast.error('Some entries may not have been unassigned — please refresh'));
   };
 
   const renameFolder = async (oldName, newName) => {
@@ -338,6 +351,11 @@ export default function JournalPage() {
       return;
     }
     const entriesToUpdate = allEntries.filter((e) => e.category === oldName);
+    // Optimistic: update state immediately
+    setAllEntries((prev) => prev.map((e) => e.category === oldName ? { ...e, category: trimmed } : e));
+    saveLocalCategories(localCategories.map((c) => (c === oldName ? trimmed : c)));
+    toast.success(`Renamed to "${trimmed}"`);
+    // Background API updates with rollback on failure
     try {
       await Promise.all(entriesToUpdate.map((entry) =>
         journalService.updateEntry(entry.id, {
@@ -350,11 +368,10 @@ export default function JournalPage() {
           usedWordIds:  entry.usedWords?.map((w) => w.id) ?? [],
         })
       ));
-      const updated = localCategories.map((c) => (c === oldName ? trimmed : c));
-      saveLocalCategories(updated);
-      await fetchEntries();
-      toast.success(`Renamed to "${trimmed}"`);
     } catch {
+      // Rollback
+      setAllEntries((prev) => prev.map((e) => e.category === trimmed ? { ...e, category: oldName } : e));
+      saveLocalCategories(localCategories);
       toast.error('Failed to rename folder');
     }
   };

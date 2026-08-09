@@ -88,6 +88,19 @@ export default function WordsPage() {
     }
   }, [page, pageSize, query, tab, categoryId, mastered, sortBy, sortDir]);
 
+  // Refetch without showing the loading spinner (used after CRUD so there's no flash)
+  const silentFetch = useCallback(async () => {
+    try {
+      const data = await wordService.getWords({
+        page, size: pageSize, query, entryType: tab,
+        categoryId, mastered, sortBy, sortDir,
+      });
+      setWords(data.content);
+      setTotalPages(data.totalPages);
+      setTotalElements(data.totalElements);
+    } catch { /* silently ignore */ }
+  }, [page, pageSize, query, tab, categoryId, mastered, sortBy, sortDir]);
+
   useEffect(() => { fetchWords(); }, [fetchWords]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => {
@@ -120,14 +133,17 @@ export default function WordsPage() {
     setSaving(true);
     try {
       if (editWord) {
-        await wordService.updateWord(editWord.id, payload);
+        const updated = await wordService.updateWord(editWord.id, payload);
+        setWords((prev) => prev.map((w) => w.id === editWord.id ? updated : w));
+        if (viewWord?.id === editWord.id) setViewWord(updated);
         toast.success('Word updated!');
       } else {
         await wordService.createWord(payload);
         toast.success('Word added!');
+        // New word position depends on sort/filter — do a silent background refetch
+        silentFetch();
       }
       setModalOpen(false);
-      fetchWords();
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save word');
@@ -138,13 +154,17 @@ export default function WordsPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this word?')) return;
+    const prevWords = words;
+    const prevTotal = words.length; // local page count
+    setWords((prev) => prev.filter((w) => w.id !== id));
+    if (viewWord?.id === id) setViewWord(null);
     try {
       await wordService.deleteWord(id);
       toast.success('Word deleted');
-      if (viewWord?.id === id) setViewWord(null);
-      fetchWords();
       fetchStats();
+      silentFetch(); // reconcile page counts
     } catch {
+      setWords(prevWords);
       toast.error('Failed to delete');
     }
   };
