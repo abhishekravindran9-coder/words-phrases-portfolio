@@ -3,16 +3,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
-  HomeIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
-  ChartBarIcon, PencilSquareIcon, XMarkIcon, AcademicCapIcon,
+  HomeIcon, BookOpenIcon,
+  ChartBarIcon, PencilSquareIcon, XMarkIcon, SparklesIcon,
   BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
 
 const LINKS = [
   { to: '/dashboard',        label: 'Dashboard',         Icon: HomeIcon },
   { to: '/words',            label: 'My Words',          Icon: BookOpenIcon },
-  { to: '/review',           label: 'Review',            Icon: ClipboardDocumentCheckIcon },
-  { to: '/quiz',             label: 'Quiz',              Icon: AcademicCapIcon },
+  { to: '/practice',         label: 'Practice',          Icon: SparklesIcon },
   { to: '/progress',         label: 'Progress',          Icon: ChartBarIcon },
   { to: '/journal',          label: 'Journal',           Icon: PencilSquareIcon },
   { to: '/property-tracker', label: 'Property Tracker',  Icon: BuildingOffice2Icon },

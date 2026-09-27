@@ -12,11 +12,10 @@ import LoginPage      from './pages/LoginPage';
 import RegisterPage   from './pages/RegisterPage';
 import DashboardPage  from './pages/DashboardPage';
 import WordsPage             from './pages/WordsPage';
-import ReviewPage            from './pages/ReviewPage';
 import ProgressPage          from './pages/ProgressPage';
 import JournalPage           from './pages/JournalPage';
 import ProfilePage           from './pages/ProfilePage';
-import QuizPage              from './pages/QuizPage';
+import PracticePage          from './pages/PracticePage';
 import PropertyTrackerPage   from './pages/PropertyTrackerPage';
 import PropertyDetailPage    from './pages/PropertyDetailPage';
 
@@ -45,9 +44,10 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/words"     element={<WordsPage />} />
-              <Route path="/review"    element={<ReviewPage />} />
+              <Route path="/practice" element={<PracticePage />} />
+              <Route path="/review"    element={<Navigate to="/practice" replace />} />
               <Route path="/progress"  element={<ProgressPage />} />
-              <Route path="/quiz"      element={<QuizPage />} />
+              <Route path="/quiz"      element={<Navigate to="/practice" replace />} />
               <Route path="/journal"              element={<JournalPage />} />
               <Route path="/profile"              element={<ProfilePage />} />
               <Route path="/property-tracker"     element={<PropertyTrackerPage />} />

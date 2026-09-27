@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { progressService } from '../services/progressService';
-import { quizService } from '../services/quizService';
 import ReviewChart from '../components/progress/ReviewChart';
 import MasteryChart from '../components/progress/MasteryChart';
 import MasteryProgressBar from '../components/progress/MasteryProgressBar';
 import RecallQualityGauge from '../components/progress/RecallQualityGauge';
 import CategoryBreakdownChart from '../components/progress/CategoryBreakdownChart';
-import QuizStatsSection from '../components/progress/QuizStatsSection';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Link } from 'react-router-dom';
 import {
@@ -54,17 +52,10 @@ function RecordCard({ icon: Icon, label, value, color }) {
  */
 export default function ProgressPage() {
   const [data,       setData]       = useState(null);
-  const [quizStats,  setQuizStats]  = useState(null);
   const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      progressService.getProgress(),
-      quizService.getStats().catch(() => null),
-    ]).then(([progress, quiz]) => {
-      setData(progress);
-      setQuizStats(quiz);
-    }).finally(() => setLoading(false));
+    progressService.getProgress().then(setData).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -91,7 +82,7 @@ export default function ProgressPage() {
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-amber-800">
             <span className="font-semibold">{data.dueReviews} {data.dueReviews === 1 ? 'word is' : 'words are'} due for review.</span>{' '}
-            <Link to="/review" className="underline font-medium">Start now →</Link>
+            <Link to="/practice" className="underline font-medium">Start now →</Link>
           </p>
         </div>
       )}
@@ -175,11 +166,6 @@ export default function ProgressPage() {
       {(data?.topCategories?.length ?? 0) > 0 && (
         <CategoryBreakdownChart categories={data.topCategories} />
       )}
-
-      {/* ── Quiz performance ── */}
-      <div className="pt-2">
-        <QuizStatsSection stats={quizStats} />
-      </div>
 
     </div>
   );

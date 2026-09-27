@@ -20,7 +20,7 @@ export default function UpcomingReviews({ words = [] }) {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-semibold text-gray-800">Upcoming Reviews</h3>
-        <Link to="/review">
+        <Link to="/practice">
           <Button size="sm" variant="ghost">Start All →</Button>
         </Link>
       </div>

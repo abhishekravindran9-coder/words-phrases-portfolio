@@ -46,8 +46,8 @@ export default function WeakestWords({ words = [], overdueCount = 0 }) {
         })}
       </ul>
 
-      <Link to="/review" className="mt-4 block text-center text-xs font-semibold text-primary-600 hover:text-primary-800 transition-colors">
-        Review these words →
+      <Link to="/practice" className="mt-4 block text-center text-xs font-semibold text-primary-600 hover:text-primary-800 transition-colors">
+        Practise these words →
       </Link>
     </div>
   );

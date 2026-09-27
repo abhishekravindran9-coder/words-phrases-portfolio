@@ -23,6 +23,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     long countByUser(User user);
 
+    long countByUserAndQualityGreaterThanEqual(User user, Integer quality);
+
     /** Count reviews per day within a date range – used for progress charts. */
     @Query("SELECT r.reviewDate, COUNT(r) FROM Review r WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to GROUP BY r.reviewDate ORDER BY r.reviewDate ASC")
     List<Object[]> countReviewsPerDay(@Param("user") User user,
@@ -41,6 +43,28 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     /** Count reviews done on a specific date. */
     long countByUserAndReviewDate(@Param("user") User user, @Param("date") LocalDate date);
+
+    long countByUserAndReviewDateBetween(User user, LocalDate from, LocalDate to);
+
+    @Query("SELECT COUNT(r) FROM Review r WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to AND r.quality >= 3")
+    long countSuccessfulReviews(@Param("user") User user,
+                                @Param("from") LocalDate from,
+                                @Param("to") LocalDate to);
+
+    /** Returns category name, color, review count, average SM-2 quality, and failed-review count. */
+    @Query("""
+        SELECT c.name, c.color, COUNT(r), AVG(r.quality),
+               SUM(CASE WHEN r.quality < 3 THEN 1 ELSE 0 END)
+        FROM Review r JOIN r.word w JOIN w.category c
+        WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to
+        GROUP BY c.id, c.name, c.color
+        HAVING COUNT(r) >= :minimumReviews
+        ORDER BY AVG(r.quality) ASC, COUNT(r) DESC
+        """)
+    List<Object[]> findWeakestCategoryRecall(@Param("user") User user,
+                                              @Param("from") LocalDate from,
+                                              @Param("to") LocalDate to,
+                                              @Param("minimumReviews") long minimumReviews);
 
     /** Maximum reviews in a single day (all-time). */
     @Query("SELECT MAX(cnt) FROM (SELECT COUNT(r) AS cnt FROM Review r WHERE r.user = :user GROUP BY r.reviewDate) sub")

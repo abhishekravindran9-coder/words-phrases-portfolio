@@ -22,6 +22,9 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     Page<Word> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
+    @Query(value = "SELECT * FROM words WHERE user_id = :userId ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+    List<Word> findRandomPracticeWords(@Param("userId") Long userId, @Param("limit") int limit);
+
     Page<Word> findByUserAndEntryTypeOrderByCreatedAtDesc(User user, String entryType, Pageable pageable);
 
     /** Full-text search scoped to an entry type. */
@@ -35,6 +38,18 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     /** Words due for review today or overdue. */
     @Query("SELECT w FROM Word w WHERE w.user = :user AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today) AND w.mastered = false ORDER BY w.nextReviewDate ASC NULLS FIRST")
     List<Word> findDueForReview(@Param("user") User user, @Param("today") LocalDate today);
+
+    /** Non-mastered cards approaching their due date, prioritised by lower ease factor. */
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through ORDER BY w.easeFactor ASC, w.nextReviewDate ASC")
+    List<Word> findApproachingDueWords(@Param("user") User user,
+                                       @Param("today") LocalDate today,
+                                       @Param("through") LocalDate through,
+                                       Pageable pageable);
+
+        @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through")
+        long countApproachingDueWords(@Param("user") User user,
+                                      @Param("today") LocalDate today,
+                                      @Param("through") LocalDate through);
 
     long countByUser(User user);
 
