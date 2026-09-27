@@ -48,6 +48,7 @@ export default function WordsPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [loading,       setLoading]       = useState(true);
   const [exporting,     setExporting]     = useState(false);
+  const [exportPageSize, setExportPageSize] = useState('A4');
 
   // ── Filter / sort state ────────────────────────────────────────────────
   const [page,       setPage]       = useState(0);
@@ -188,7 +189,7 @@ export default function WordsPage() {
         toast('Your vocabulary is empty. Add some words or phrases first.');
         return;
       }
-      await downloadWordsPdf(allWords, pdfMake);
+      await downloadWordsPdf(allWords, pdfMake, exportPageSize);
       toast.success(`Downloaded ${allWords.length} vocabulary entries`);
     } catch {
       toast.error('Could not download your vocabulary PDF');
@@ -216,6 +217,15 @@ export default function WordsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-gray-900">My Vault</h1>
         <div className="flex items-center gap-2">
+          <select
+            aria-label="PDF paper size"
+            value={exportPageSize}
+            onChange={(event) => setExportPageSize(event.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="A4">A4 PDF</option>
+            <option value="A3">A3 PDF</option>
+          </select>
           <Button variant="secondary" onClick={handleExport} loading={exporting}>
             <ArrowDownTrayIcon className="h-4 w-4" /> Download PDF
           </Button>

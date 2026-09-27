@@ -55,6 +55,7 @@ export default function JournalPage() {
   const [words,        setWords]        = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [exporting,    setExporting]    = useState(false);
+  const [exportPageSize, setExportPageSize] = useState('A4');
   const [saving,       setSaving]       = useState(false);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editEntry,    setEditEntry]    = useState(null);
@@ -349,7 +350,7 @@ export default function JournalPage() {
         toast('Your journal is empty. Write an entry before exporting.');
         return;
       }
-      await downloadJournalPdf(entries, pdfMake);
+      await downloadJournalPdf(entries, pdfMake, exportPageSize);
       toast.success(`Downloaded ${entries.length} journal entries`);
     } catch {
       toast.error('Could not download your journal PDF');
@@ -466,6 +467,15 @@ export default function JournalPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <select
+            aria-label="PDF paper size"
+            value={exportPageSize}
+            onChange={(event) => setExportPageSize(event.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+          >
+            <option value="A4">A4 PDF</option>
+            <option value="A3">A3 PDF</option>
+          </select>
           <Button variant="secondary" onClick={handleExport} loading={exporting} className="flex-shrink-0">
             <ArrowDownTrayIcon className="h-4 w-4" /> Download PDF
           </Button>
