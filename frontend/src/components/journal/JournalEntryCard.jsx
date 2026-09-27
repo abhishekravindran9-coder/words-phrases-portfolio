@@ -45,7 +45,7 @@ function MoveToFolderMenu({ entry, allCategories, onMoveToFolder }) {
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         title="Move to folder"
-        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50
+              className="min-h-9 min-w-9 p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50
                    dark:hover:bg-gray-700 dark:hover:text-indigo-400 rounded-lg transition-colors"
         aria-label="Move to folder"
       >
@@ -90,8 +90,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
 
   return (
     <article
-      className={`group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700
-                 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden cursor-pointer
+      className={`group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-900/5 dark:border-gray-700 dark:bg-gray-800
                  ${isMoving ? 'opacity-75 pointer-events-none' : ''}`}
       onClick={() => !isMoving && onView?.(entry)}
     >
@@ -110,7 +109,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${mood.bar} rounded-l-2xl`} />
       )}
 
-      <div className="pl-5 pr-4 pt-4 pb-4">
+      <div className="pl-5 pr-4 pt-4 pb-4 sm:pl-6 sm:pr-5">
         {/* Top row: mood badge + date + actions */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -135,13 +134,13 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
           </div>
 
           {/* Actions — always faintly visible on touch, revealed on hover */}
-          <div className="flex gap-0.5 flex-shrink-0 opacity-20 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+          <div className="flex flex-shrink-0 gap-0.5 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
             {onMoveToFolder && allCategories.length > 0 && (
               <MoveToFolderMenu entry={entry} allCategories={allCategories} onMoveToFolder={onMoveToFolder} />
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
-              className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50
+              className="min-h-9 min-w-9 p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50
                          dark:hover:bg-gray-700 rounded-lg transition-colors"
               aria-label="Edit"
             >
@@ -149,7 +148,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(entry.id); }}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50
+              className="min-h-9 min-w-9 p-2 text-gray-500 hover:text-red-600 hover:bg-red-50
                          dark:hover:bg-red-900/30 rounded-lg transition-colors"
               aria-label="Delete"
             >
@@ -159,7 +158,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
         </div>
 
         {/* Title */}
-        <h3 className="font-bold text-gray-900 dark:text-gray-100 leading-snug mb-2 line-clamp-1">
+        <h3 className="mb-2 line-clamp-2 text-base font-bold leading-snug text-gray-900 dark:text-gray-100 sm:text-lg">
           {entry.title}
         </h3>
 
@@ -180,13 +179,13 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
         )}
 
         {/* Content preview */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-3 mb-4">
+        <p className="mb-4 line-clamp-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
           {entry.content}
         </p>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-50 dark:border-gray-700/60">
-          <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500">
+        <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1">
               <ClockIcon className="h-3 w-3" />
               {mins} min read

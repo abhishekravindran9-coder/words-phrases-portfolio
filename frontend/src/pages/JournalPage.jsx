@@ -460,10 +460,10 @@ export default function JournalPage() {
       {/* ── Page header ──────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 px-4 sm:px-5">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
-            📔 Journal
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+            Journal
           </h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Reflect and practise vocabulary in context
           </p>
         </div>
@@ -484,7 +484,7 @@ export default function JournalPage() {
 
       {/* ── Rich stats bar ───────────────────────────────────── */}
       {!loading && allEntries.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             emoji="📝"
             label="Entries"
@@ -502,7 +502,7 @@ export default function JournalPage() {
             highlight={streak >= 3}
           />
           <StatCard
-            emoji={dominantMoodMeta ? dominantMoodMeta.label.split(' ')[0] : '�'}
+            emoji={dominantMoodMeta ? dominantMoodMeta.label.split(' ')[0] : '📝'}
             label="Avg entry"
             value={`${avgWords} words`}
             sub={topWord ? `🏆 ${topWord}` : null}
@@ -517,7 +517,7 @@ export default function JournalPage() {
 
       {/* ── Search + filter row ──────────────────────────────── */}
       {!loading && allEntries.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:p-4">
           {/* Search */}
           <div className="relative flex-1">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -526,13 +526,13 @@ export default function JournalPage() {
               placeholder="Search entries…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
-                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
-                         placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="Search journal entries"
+              className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-9 text-sm text-gray-900 placeholder-gray-400 focus:border-primary-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900 dark:focus:ring-primary-900/40"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
+                aria-label="Clear search"
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -544,9 +544,7 @@ export default function JournalPage() {
           <div className="relative">
             <button
               onClick={() => setShowSort((s) => !s)}
-              className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-600
-                         bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400
-                         hover:border-primary-400 transition-colors whitespace-nowrap"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 transition-colors hover:border-primary-300 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 sm:justify-start"
             >
               <BarsArrowDownIcon className="h-4 w-4" />
               {SORT_OPTIONS.find((s) => s.value === sortBy)?.label}
@@ -572,7 +570,9 @@ export default function JournalPage() {
           {/* Filter toggle button */}
           <button
             onClick={() => setShowFilters((f) => !f)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm rounded-xl border transition-colors whitespace-nowrap
+            aria-expanded={showFilters}
+            aria-controls="journal-filter-panel"
+            className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-colors whitespace-nowrap sm:justify-start
               ${(showFilters || activeFilterCount > 0)
                 ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 dark:border-primary-700'
                 : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
@@ -595,6 +595,7 @@ export default function JournalPage() {
           <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
             <button
               onClick={() => setViewMode('list')}
+              aria-pressed={viewMode === 'list'}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
                 ${viewMode === 'list'
                   ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
@@ -605,6 +606,7 @@ export default function JournalPage() {
             </button>
             <button
               onClick={() => setViewMode('timeline')}
+              aria-pressed={viewMode === 'timeline'}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
                 ${viewMode === 'timeline'
                   ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
@@ -615,6 +617,7 @@ export default function JournalPage() {
             </button>
             <button
               onClick={() => setViewMode('folders')}
+              aria-pressed={viewMode === 'folders'}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-all
                 ${viewMode === 'folders'
                   ? 'bg-white dark:bg-gray-700 text-primary-700 dark:text-primary-400 shadow-sm font-medium'
@@ -628,13 +631,14 @@ export default function JournalPage() {
       )}
 
       {/* ── Collapsible filter panel ─────────────────────────── */}
-      {!loading && allEntries.length > 0 && showFilters && (
-        <div className="rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 px-4 py-3.5 space-y-3">
+      {!loading && allEntries.length > 0 && (
+        <div id="journal-filter-panel" hidden={!showFilters} className="space-y-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:px-5">
           <div>
             <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Mood</p>
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setMoodFilter('')}
+                aria-pressed={!moodFilter}
                 className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
                   ${!moodFilter ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
               >All</button>
@@ -645,6 +649,7 @@ export default function JournalPage() {
                   <button
                     key={m.value}
                     onClick={() => setMoodFilter((f) => (f === m.value ? '' : m.value))}
+                    aria-pressed={moodFilter === m.value}
                     title={`${m.label} (${count})`}
                     className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border transition-colors
                       ${moodFilter === m.value ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
@@ -662,6 +667,7 @@ export default function JournalPage() {
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   onClick={() => setCategoryFilter('')}
+                  aria-pressed={!categoryFilter}
                   className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors
                     ${!categoryFilter ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
                 >All</button>
@@ -669,6 +675,7 @@ export default function JournalPage() {
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter((f) => (f === cat ? '' : cat))}
+                    aria-pressed={categoryFilter === cat}
                     className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors
                       ${categoryFilter === cat ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-400'}`}
                   >{cat}</button>
@@ -1215,24 +1222,34 @@ const MOOD_BAR_COLOR = {
   challenged: 'bg-blue-400',
   tired:      'bg-purple-400',
 };
+const MOOD_TEXT_COLOR = {
+  excited: 'text-amber-700 dark:text-amber-300',
+  happy: 'text-yellow-700 dark:text-yellow-300',
+  motivated: 'text-green-700 dark:text-green-300',
+  neutral: 'text-gray-600 dark:text-gray-300',
+  challenged: 'text-blue-700 dark:text-blue-300',
+  tired: 'text-purple-700 dark:text-purple-300',
+};
 
 function StatCard({ emoji, label, value, sub, highlight }) {
   return (
-    <div className={`bg-white dark:bg-gray-800 border rounded-2xl px-4 py-4 shadow-sm transition-all
+    <div className={`rounded-2xl border bg-white px-4 py-4 shadow-sm transition-all dark:bg-gray-800
       ${highlight
-        ? 'border-orange-200 dark:border-orange-800 ring-1 ring-orange-100 dark:ring-orange-900/30'
-        : 'border-gray-100 dark:border-gray-700'}`}
+        ? 'border-orange-200 ring-1 ring-orange-100 dark:border-orange-800 dark:ring-orange-900/30'
+        : 'border-gray-200 dark:border-gray-700'}`}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xl leading-none">{emoji}</span>
-        <p className={`font-extrabold leading-tight ${
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{label}</p>
+          <p className={`mt-1 font-extrabold leading-tight tracking-tight ${
           highlight ? 'text-orange-600 dark:text-orange-400' : 'text-gray-800 dark:text-gray-100'
-        } ${String(value).length > 6 ? 'text-base' : 'text-xl'}`}>
-          {value}
-        </p>
+          } ${String(value).length > 6 ? 'text-lg' : 'text-2xl'}`}>
+            {value}
+          </p>
+        </div>
+        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-lg ${highlight ? 'bg-orange-50 dark:bg-orange-900/30' : 'bg-gray-50 dark:bg-gray-700/70'}`} aria-hidden="true">{emoji}</span>
       </div>
-      <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">{label}</p>
-      {sub && <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-0.5 truncate">{sub}</p>}
+      {sub && <p className="mt-1 truncate text-[11px] text-gray-500 dark:text-gray-400">{sub}</p>}
     </div>
   );
 }
@@ -1240,32 +1257,43 @@ function StatCard({ emoji, label, value, sub, highlight }) {
 function MoodBreakdownBar({ moodCounts, total }) {
   const segments = MOOD_OPTIONS
     .filter((m) => moodCounts[m.value])
-    .map((m) => ({ ...m, count: moodCounts[m.value], pct: (moodCounts[m.value] / total) * 100 }));
+    .map((m) => ({ ...m, count: moodCounts[m.value], pct: (moodCounts[m.value] / total) * 100 }))
+    .sort((a, b) => b.count - a.count);
+  const taggedEntries = segments.reduce((sum, mood) => sum + mood.count, 0);
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl px-4 py-3 shadow-sm">
-      <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
-        Mood distribution
-      </p>
-      <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
-        {segments.map((s) => (
-          <div
-            key={s.value}
-            className={`${MOOD_BAR_COLOR[s.value]} transition-all`}
-            style={{ width: `${s.pct}%` }}
-            title={`${s.label}: ${s.count} entr${s.count !== 1 ? 'ies' : 'y'}`}
-          />
+    <section aria-labelledby="journal-mood-heading" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <h2 id="journal-mood-heading" className="text-sm font-bold text-gray-900 dark:text-gray-100">Mood snapshot</h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">A quick read of the feelings in your writing</p>
+        </div>
+        <span className="flex-shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          {taggedEntries} tagged
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+        {segments.map((mood) => (
+          <div key={mood.value} className="min-w-0 rounded-xl border border-gray-100 bg-gray-50/70 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+            <div className="flex items-center justify-between gap-1">
+              <span className="truncate text-xs font-semibold text-gray-700 dark:text-gray-200">{mood.label.split(' ').slice(1).join(' ')}</span>
+              <span className="text-base leading-none" aria-hidden="true">{mood.label.split(' ')[0]}</span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className={`text-xl font-extrabold tabular-nums ${MOOD_TEXT_COLOR[mood.value]}`}>{mood.count}</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400">{Math.round(mood.pct)}%</span>
+            </div>
+            <div
+              className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+              role="img"
+              aria-label={`${mood.label.split(' ').slice(1).join(' ')}: ${mood.count} entries, ${Math.round(mood.pct)} percent of journal entries`}
+            >
+              <div className={`h-full rounded-full ${MOOD_BAR_COLOR[mood.value]}`} style={{ width: `${Math.max(mood.pct > 0 ? 3 : 0, mood.pct)}%` }} />
+            </div>
+          </div>
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-        {segments.map((s) => (
-          <span key={s.value} className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
-            <span className={`inline-block w-2 h-2 rounded-full ${MOOD_BAR_COLOR[s.value]}`} />
-            {s.label.split(' ')[0]} {s.count}
-          </span>
-        ))}
-      </div>
-    </div>
+    </section>
   );
 }
 

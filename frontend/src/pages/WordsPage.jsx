@@ -60,6 +60,7 @@ export default function WordsPage() {
   const [mastered,   setMastered]   = useState(null);     // null | true | false
   const [sortIdx,    setSortIdx]    = useState(0);        // index into SORT_OPTIONS
   const [viewMode,   setViewMode]   = useState('grid');   // 'grid' | 'list'
+  const [showFilters, setShowFilters] = useState(false);
 
   // ── Modal state ────────────────────────────────────────────────────────
   const [saving,    setSaving]    = useState(false);
@@ -126,6 +127,7 @@ export default function WordsPage() {
   };
 
   const hasActiveFilters = query || tab || categoryId !== null || mastered !== null || sortIdx !== 0;
+  const advancedFilterCount = (categoryId !== null ? 1 : 0) + (mastered !== null ? 1 : 0) + (sortIdx !== 0 ? 1 : 0);
 
   // ── CRUD handlers ──────────────────────────────────────────────────────
 
@@ -215,7 +217,7 @@ export default function WordsPage() {
     <div className="sm:max-w-5xl sm:mx-auto space-y-4">
 
       {/* ── Header ── */}
-      <div className="flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">My Vault</h1>
           <p className="mt-0.5 text-sm text-gray-500">Your words and phrases, all in one place.</p>
@@ -227,6 +229,32 @@ export default function WordsPage() {
         </div>
       </div>
 
+      {/* ── Stats bar ── */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatChip
+            icon={<AdjustmentsHorizontalIcon className="h-4 w-4" />}
+            label="Total"
+            value={stats.total}
+          />
+          <StatChip
+            icon={<CheckBadgeIcon className="h-4 w-4" />}
+            label="Mastered"
+            value={stats.mastered}
+          />
+          <StatChip
+            icon={<BookOpenIcon className="h-4 w-4" />}
+            label="Words"
+            value={stats.words}
+          />
+          <StatChip
+            icon={<ChatBubbleLeftRightIcon className="h-4 w-4" />}
+            label="Phrases"
+            value={stats.phrases}
+          />
+        </div>
+      )}
+
       <PdfExportPanel
         collection="vocabulary"
         pageSize={exportPageSize}
@@ -237,48 +265,20 @@ export default function WordsPage() {
         count={totalElements}
       />
 
-      {/* ── Stats bar ── */}
-      {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatChip
-            icon={<AdjustmentsHorizontalIcon className="h-4 w-4" />}
-            label="Total"
-            value={stats.total}
-            color="bg-primary-50 text-primary-700 border-primary-100"
-          />
-          <StatChip
-            icon={<CheckBadgeIcon className="h-4 w-4" />}
-            label="Mastered"
-            value={stats.mastered}
-            color="bg-emerald-50 text-emerald-700 border-emerald-100"
-          />
-          <StatChip
-            icon={<BookOpenIcon className="h-4 w-4" />}
-            label="Words"
-            value={stats.words}
-            color="bg-blue-50 text-blue-700 border-blue-100"
-          />
-          <StatChip
-            icon={<ChatBubbleLeftRightIcon className="h-4 w-4" />}
-            label="Phrases"
-            value={stats.phrases}
-            color="bg-purple-50 text-purple-700 border-purple-100"
-          />
-        </div>
-      )}
-
-      {/* ── Toolbar row 1: type tabs + search + view toggle ── */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        {/* Type tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
+      {/* ── Primary browse controls ── */}
+      <section aria-label="Search and browse vocabulary" className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {/* Entry type */}
+        <div className="flex w-full flex-shrink-0 gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-900/60 sm:w-auto">
           {TYPE_TABS.map(({ label, value }) => (
             <button
               key={value}
               onClick={() => handleTabChange(value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+              aria-pressed={tab === value}
+              className={`min-h-10 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap sm:flex-none
                 ${tab === value
-                  ? 'bg-white shadow text-gray-900'
-                  : 'text-gray-500 hover:text-gray-800'}`}
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100'}`}
             >
               {label}
             </button>
@@ -293,129 +293,126 @@ export default function WordsPage() {
             placeholder="Search word or definition…"
             value={query}
             onChange={handleSearch}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg shadow-sm
-                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            aria-label="Search words and phrases"
+            className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-primary-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900 dark:focus:ring-primary-900/40"
           />
           {query && (
             <button
               onClick={() => { setQuery(''); setPage(0); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
           )}
         </div>
 
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
         {/* View toggle */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-shrink-0">
+        <div className="flex flex-shrink-0 gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-900/60">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
-            title="Grid view"
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white text-primary-700 shadow-sm dark:bg-gray-700 dark:text-primary-300' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100'}`}
           >
             <Squares2X2Icon className="h-4 w-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-400 hover:text-gray-700'}`}
-            title="List view"
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white text-primary-700 shadow-sm dark:bg-gray-700 dark:text-primary-300' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100'}`}
           >
             <ListBulletIcon className="h-4 w-4" />
           </button>
         </div>
-      </div>
-
-      {/* ── Toolbar row 2: category chips + mastery + sort + page size ── */}
-      <div className="flex flex-wrap items-center gap-2">
-
-        {/* Category chips */}
-        {categories.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => handleCategoryChange(null)}
-              className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors
-                ${categoryId === null
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
-            >
-              All cats
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryChange(categoryId === cat.id ? null : cat.id)}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors
-                  ${categoryId === cat.id ? 'text-white border-transparent' : 'bg-white border-gray-200 hover:border-gray-400'}`}
-                style={categoryId === cat.id
-                  ? { backgroundColor: cat.color || '#4f46e5', borderColor: cat.color || '#4f46e5', color: '#fff' }
-                  : { color: cat.color || '#4f46e5' }}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Divider */}
-        {categories.length > 0 && <div className="w-px h-5 bg-gray-200 hidden sm:block" />}
-
-        {/* Mastery 3-way toggle */}
-        <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
-          {[
-            { v: null,  label: 'All'       },
-            { v: false, label: '⏳ To Learn' },
-            { v: true,  label: '✅ Mastered' },
-          ].map(({ v, label }) => (
-            <button
-              key={String(v)}
-              onClick={() => handleMasteredToggle(v)}
-              className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors whitespace-nowrap
-                ${mastered === v
-                  ? 'bg-white shadow text-gray-900'
-                  : 'text-gray-500 hover:text-gray-800'}`}
-            >
-              {label}
-            </button>
-          ))}
+        <button
+          type="button"
+          aria-expanded={showFilters}
+          aria-controls="word-filter-panel"
+          onClick={() => setShowFilters((open) => !open)}
+          className={`flex min-h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${showFilters || advancedFilterCount > 0 ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+        >
+          <AdjustmentsHorizontalIcon className="h-4 w-4" />
+          <span>Filters{advancedFilterCount > 0 ? ` · ${advancedFilterCount}` : ''}</span>
+        </button>
+        </div>
         </div>
 
-        {/* Sort dropdown */}
-        <select
-          value={sortIdx}
-          onChange={(e) => handleSortChange(Number(e.target.value))}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-        >
-          {SORT_OPTIONS.map((opt, i) => (
-            <option key={i} value={i}>{opt.label}</option>
-          ))}
-        </select>
+        <div id="word-filter-panel" hidden={!showFilters} className="mt-4 space-y-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+            {categories.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Category</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleCategoryChange(null)}
+                    aria-pressed={categoryId === null}
+                    className={`min-h-9 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${categoryId === null ? 'border-gray-800 bg-gray-800 text-white dark:border-gray-200 dark:bg-gray-100 dark:text-gray-900' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}
+                  >All categories</button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => handleCategoryChange(categoryId === cat.id ? null : cat.id)}
+                      aria-pressed={categoryId === cat.id}
+                      className="min-h-9 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
+                      style={categoryId === cat.id
+                        ? { backgroundColor: cat.color || '#4f46e5', borderColor: cat.color || '#4f46e5', color: '#fff' }
+                        : { color: cat.color || '#4f46e5', borderColor: `${cat.color || '#4f46e5'}55` }}
+                    >{cat.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Page size */}
-        <select
-          value={pageSize}
-          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700
-                     focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-        >
-          {PAGE_SIZES.map((s) => (
-            <option key={s} value={s}>{s} per page</option>
-          ))}
-        </select>
-      </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label htmlFor="word-mastery-filter" className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Learning status</label>
+                <select
+                  id="word-mastery-filter"
+                  value={mastered === null ? 'all' : mastered ? 'mastered' : 'learning'}
+                  onChange={(event) => handleMasteredToggle(event.target.value === 'all' ? null : event.target.value === 'mastered')}
+                  className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <option value="all">All entries</option>
+                  <option value="learning">Still learning</option>
+                  <option value="mastered">Mastered</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="word-sort" className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Sort by</label>
+                <select id="word-sort" value={sortIdx} onChange={(event) => handleSortChange(Number(event.target.value))} className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+                  {SORT_OPTIONS.map((opt, index) => <option key={opt.label} value={index}>{opt.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="word-page-size" className="mb-1.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">Entries per page</label>
+                <select id="word-page-size" value={pageSize} onChange={(event) => handlePageSizeChange(Number(event.target.value))} className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+                  {PAGE_SIZES.map((size) => <option key={size} value={size}>{size} entries</option>)}
+                </select>
+              </div>
+            </div>
+            {advancedFilterCount > 0 && (
+              <div className="flex justify-end border-t border-gray-100 pt-3 dark:border-gray-700">
+                <button type="button" onClick={() => { handleCategoryChange(null); handleMasteredToggle(null); handleSortChange(0); }} className="min-h-9 rounded-lg px-3 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/30">
+                  Clear filters
+                </button>
+              </div>
+            )}
+        </div>
+      </section>
 
       {/* ── Active filter chips ── */}
       {activeChips.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-gray-400">Filters:</span>
           {activeChips.map((chip, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 text-xs bg-primary-50 text-primary-700
-                         border border-primary-100 rounded-full px-2.5 py-0.5 font-medium"
+              className="inline-flex min-h-8 items-center gap-1 rounded-full border border-primary-100 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300"
             >
               {chip.label}
-              <button onClick={chip.clear} className="ml-0.5 hover:text-primary-900">
+              <button onClick={chip.clear} aria-label={`Remove ${chip.label} filter`} className="ml-0.5 rounded-full p-0.5 hover:bg-primary-100 hover:text-primary-900 dark:hover:bg-primary-800">
                 <XMarkIcon className="h-3 w-3" />
               </button>
             </span>
@@ -503,13 +500,19 @@ export default function WordsPage() {
 
 // ── Small helper components ────────────────────────────────────────────────
 
-function StatChip({ icon, label, value, color }) {
+function StatChip({ icon, label, value }) {
+  const accent = {
+    Total: 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300',
+    Mastered: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    Words: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+    Phrases: 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  }[label] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
   return (
-    <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 ${color}`}>
-      <span className="flex-shrink-0">{icon}</span>
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{label}</p>
-        <p className="text-xl font-extrabold leading-none">{value}</p>
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3.5 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:px-4">
+      <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${accent}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="mt-0.5 text-xl font-extrabold leading-none tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
       </div>
     </div>
   );

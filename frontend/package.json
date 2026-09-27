@@ -1,6 +1,6 @@
 {
   "name": "words-phrases-frontend",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "dependencies": {
     "@headlessui/react": "^1.7.18",
