@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../common/Button';
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import { XCircleIcon } from '@heroicons/react/24/solid';
 import { TrophyIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
 
 function grade(pct) {

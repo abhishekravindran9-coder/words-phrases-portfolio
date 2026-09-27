@@ -19,6 +19,18 @@ export const wordService = {
     return res.data.data;
   },
 
+  async getAllWords() {
+    const pageSize = 500;
+    const firstPage = await this.getWords({ page: 0, size: pageSize, sortBy: 'word', sortDir: 'asc' });
+    const words = [...(firstPage.content || [])];
+    const remainingPages = Array.from({ length: Math.max(0, (firstPage.totalPages || 0) - 1) }, (_, index) => index + 1);
+    const remainingResults = await Promise.all(remainingPages.map((page) =>
+      this.getWords({ page, size: pageSize, sortBy: 'word', sortDir: 'asc' })
+    ));
+    remainingResults.forEach((result) => words.push(...(result.content || [])));
+    return words;
+  },
+
   async getStats() {
     const res = await api.get('/words/stats');
     return res.data.data;

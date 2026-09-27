@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { propertyService } from '../../services/propertyService';
 
@@ -96,7 +95,6 @@ export default function EmiScheduleTab({ propertyId }) {
   }
 
   const displayed = showAll ? schedule : schedule.slice(0, 24);
-  const unpaidMonths = new Set(schedule.filter((e) => !e.paid).map((e) => e.month));
   const pastUnpaidCount = schedule.filter((e) => !e.paid && e.date <= TODAY).length;
 
   const paidCount     = schedule.filter((e) => e.paid).length;

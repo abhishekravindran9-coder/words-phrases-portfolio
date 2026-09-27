@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Chart as ChartJS,
-  CategoryScale, LinearScale, BarElement, LineElement,
+  CategoryScale, LinearScale, LineElement,
   PointElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
-import { Bar, Line } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   TrophyIcon, FireIcon, AcademicCapIcon, BoltIcon,
   ClockIcon, ChartBarIcon, ExclamationCircleIcon,
@@ -13,20 +13,20 @@ import {
 } from '@heroicons/react/24/outline';
 
 ChartJS.register(
-  CategoryScale, LinearScale, BarElement, LineElement,
+  CategoryScale, LinearScale, LineElement,
   PointElement, Title, Tooltip, Legend, Filler
 );
-
-const TYPE_LABELS = {
-  MULTIPLE_CHOICE:     'Multiple Choice',
-  FILL_BLANK_WORD:     'Type the Word',
-  FILL_BLANK_SENTENCE: 'Fill in the Blank',
-};
 
 const TYPE_ICONS = {
   MULTIPLE_CHOICE:     '🔤',
   FILL_BLANK_WORD:     '✏️',
   FILL_BLANK_SENTENCE: '📝',
+};
+
+const TYPE_LABELS = {
+  MULTIPLE_CHOICE:     'Multiple Choice',
+  FILL_BLANK_WORD:     'Type the Word',
+  FILL_BLANK_SENTENCE: 'Fill in the Blank',
 };
 
 function fmtTime(secs) {
@@ -104,13 +104,12 @@ export default function QuizStatsSection({ stats }) {
     currentPassingStreak, longestPassingStreak,
     quizzesToday, questionsToday,
   } = stats;
+  const typeEntries = Object.entries(accuracyByType);
 
   // ── Score trend chart (last 10 sessions, chronological order) ────────────
   const chronoSessions = [...recentSessions].reverse();
   const trendLabels = chronoSessions.map((_, i) => `#${i + 1}`);
   const trendData   = chronoSessions.map((s) => Math.round(s.scorePercent));
-  const trendColors = trendData.map((v) => gradeColor(v).bg.replace('bg-', ''));
-
   const trendChartData = {
     labels: trendLabels,
     datasets: [
@@ -152,37 +151,6 @@ export default function QuizStatsSection({ stats }) {
         grid: { color: 'rgba(0,0,0,0.04)' },
       },
       x: { grid: { display: false } },
-    },
-  };
-
-  // ── Accuracy by type chart ────────────────────────────────────────────────
-  const typeEntries = Object.entries(accuracyByType);
-  const typeBarData = {
-    labels: typeEntries.map(([t]) => TYPE_LABELS[t] || t),
-    datasets: [
-      {
-        label: 'Accuracy %',
-        data:  typeEntries.map(([, s]) => Math.round(s.accuracy)),
-        backgroundColor: ['rgba(99,102,241,0.7)', 'rgba(16,185,129,0.7)', 'rgba(251,191,36,0.7)'],
-        borderColor:     ['rgba(99,102,241,1)',   'rgba(16,185,129,1)',   'rgba(251,191,36,1)'],
-        borderWidth: 1,
-        borderRadius: 6,
-      },
-    ],
-  };
-
-  const typeBarOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y',
-    plugins: { legend: { display: false } },
-    scales: {
-      x: {
-        min: 0, max: 100,
-        ticks: { callback: (v) => `${v}%` },
-        grid: { color: 'rgba(0,0,0,0.04)' },
-      },
-      y: { grid: { display: false } },
     },
   };
 

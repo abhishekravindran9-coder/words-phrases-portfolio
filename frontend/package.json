@@ -1,6 +1,6 @@
 {
   "name": "words-phrases-frontend",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "dependencies": {
     "@headlessui/react": "^1.7.18",
@@ -8,6 +8,7 @@
     "@heroicons/react": "^2.1.1",
     "axios": "^1.6.7",
     "chart.js": "^4.4.2",
+    "pdfmake": "^0.3.11",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
@@ -16,14 +17,15 @@
     "react-scripts": "5.0.1"
   },
   "devDependencies": {
+    "@craco/craco": "^7.1.0",
     "autoprefixer": "^10.4.18",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1"
   },
   "scripts": {
-    "start": "REACT_APP_VERSION=$npm_package_version react-scripts start",
-    "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
-    "test": "react-scripts test",
+    "start": "REACT_APP_VERSION=$npm_package_version craco start",
+    "build": "REACT_APP_VERSION=$npm_package_version craco build",
+    "test": "craco test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Button from '../common/Button';
 import {
   AcademicCapIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
-  FireIcon, TrophyIcon, ChartBarIcon,
+  FireIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const LENGTHS = [

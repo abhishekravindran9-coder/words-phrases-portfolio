@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { journalService } from '../services/journalService';
 import { wordService } from '../services/wordService';
+import { downloadJournalPdf, preparePdfExport } from '../utils/pdfExport';
 import JournalEntryCard from '../components/journal/JournalEntryCard';
 import JournalEntryViewer from '../components/journal/JournalEntryViewer';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import {
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, BookOpenIcon,
   FunnelIcon, BarsArrowDownIcon, ListBulletIcon, CalendarIcon, FolderIcon,
-  PencilIcon, Bars3Icon, TrashIcon,
+  PencilIcon, Bars3Icon, TrashIcon, ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { MOOD_OPTIONS } from '../utils/constants';
@@ -54,6 +54,7 @@ export default function JournalPage() {
   const [totalEntries, setTotalEntries] = useState(0);
   const [words,        setWords]        = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [exporting,    setExporting]    = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editEntry,    setEditEntry]    = useState(null);
@@ -337,6 +338,26 @@ export default function JournalPage() {
     localStorage.setItem('journal-folders', JSON.stringify(cats));
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const [entries, pdfMake] = await Promise.all([
+        journalService.getAllEntries(),
+        preparePdfExport(),
+      ]);
+      if (!entries.length) {
+        toast('Your journal is empty. Write an entry before exporting.');
+        return;
+      }
+      await downloadJournalPdf(entries, pdfMake);
+      toast.success(`Downloaded ${entries.length} journal entries`);
+    } catch {
+      toast.error('Could not download your journal PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const addFolder = () => {
     const name = newFolderName.trim();
     if (!name) return;
@@ -445,6 +466,9 @@ export default function JournalPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleExport} loading={exporting} className="flex-shrink-0">
+            <ArrowDownTrayIcon className="h-4 w-4" /> Download PDF
+          </Button>
           <Button onClick={openCreate} className="flex-shrink-0">
             <PlusIcon className="h-4 w-4" /> New Entry
           </Button>

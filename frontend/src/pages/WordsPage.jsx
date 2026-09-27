@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { wordService } from '../services/wordService';
 import { categoryService } from '../services/categoryService';
+import { downloadWordsPdf, preparePdfExport } from '../utils/pdfExport';
 import WordCard from '../components/words/WordCard';
 import WordDetailModal from '../components/words/WordDetailModal';
 import WordForm from '../components/words/WordForm';
@@ -11,7 +12,7 @@ import toast from 'react-hot-toast';
 import {
   PlusIcon, MagnifyingGlassIcon, Squares2X2Icon, ListBulletIcon,
   AdjustmentsHorizontalIcon, XMarkIcon, CheckBadgeIcon,
-  BookOpenIcon, ChatBubbleLeftRightIcon, AcademicCapIcon,
+  BookOpenIcon, ChatBubbleLeftRightIcon, ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ export default function WordsPage() {
   const [totalPages,    setTotalPages]    = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [loading,       setLoading]       = useState(true);
+  const [exporting,     setExporting]     = useState(false);
 
   // ── Filter / sort state ────────────────────────────────────────────────
   const [page,       setPage]       = useState(0);
@@ -155,7 +157,6 @@ export default function WordsPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this word?')) return;
     const prevWords = words;
-    const prevTotal = words.length; // local page count
     setWords((prev) => prev.filter((w) => w.id !== id));
     if (viewWord?.id === id) setViewWord(null);
     try {
@@ -176,6 +177,26 @@ export default function WordsPage() {
     return created;
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const [allWords, pdfMake] = await Promise.all([
+        wordService.getAllWords(),
+        preparePdfExport(),
+      ]);
+      if (!allWords.length) {
+        toast('Your vocabulary is empty. Add some words or phrases first.');
+        return;
+      }
+      await downloadWordsPdf(allWords, pdfMake);
+      toast.success(`Downloaded ${allWords.length} vocabulary entries`);
+    } catch {
+      toast.error('Could not download your vocabulary PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // ── Active filter chips description ───────────────────────────────────
 
   const activeChips = [];
@@ -194,9 +215,14 @@ export default function WordsPage() {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-gray-900">My Vault</h1>
-        <Button onClick={openAdd}>
-          <PlusIcon className="h-4 w-4 mr-1" /> Add Entry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleExport} loading={exporting}>
+            <ArrowDownTrayIcon className="h-4 w-4" /> Download PDF
+          </Button>
+          <Button onClick={openAdd}>
+            <PlusIcon className="h-4 w-4 mr-1" /> Add Entry
+          </Button>
+        </div>
       </div>
 
       {/* ── Stats bar ── */}
