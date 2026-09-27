@@ -4,13 +4,14 @@ import { wordService } from '../services/wordService';
 import { downloadJournalPdf, preparePdfExport } from '../utils/pdfExport';
 import JournalEntryCard from '../components/journal/JournalEntryCard';
 import JournalEntryViewer from '../components/journal/JournalEntryViewer';
+import PdfExportPanel from '../components/common/PdfExportPanel';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import toast from 'react-hot-toast';
 import {
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, BookOpenIcon,
   FunnelIcon, BarsArrowDownIcon, ListBulletIcon, CalendarIcon, FolderIcon,
-  PencilIcon, Bars3Icon, TrashIcon, ArrowDownTrayIcon,
+  PencilIcon, Bars3Icon, TrashIcon,
 } from '@heroicons/react/24/outline';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { MOOD_OPTIONS } from '../utils/constants';
@@ -457,7 +458,7 @@ export default function JournalPage() {
     <div className="max-w-4xl mx-auto space-y-6">
 
       {/* ── Page header ──────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 px-4 sm:px-5">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
             📔 Journal
@@ -466,24 +467,20 @@ export default function JournalPage() {
             Reflect and practise vocabulary in context
           </p>
         </div>
-        <div className="flex gap-2">
-          <select
-            aria-label="PDF paper size"
-            value={exportPageSize}
-            onChange={(event) => setExportPageSize(event.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-          >
-            <option value="A4">A4 PDF</option>
-            <option value="A3">A3 PDF</option>
-          </select>
-          <Button variant="secondary" onClick={handleExport} loading={exporting} className="flex-shrink-0">
-            <ArrowDownTrayIcon className="h-4 w-4" /> Download PDF
-          </Button>
-          <Button onClick={openCreate} className="flex-shrink-0">
-            <PlusIcon className="h-4 w-4" /> New Entry
-          </Button>
-        </div>
+        <Button onClick={openCreate} className="min-h-[44px] flex-shrink-0">
+          <PlusIcon className="h-4 w-4" /> New Entry
+        </Button>
       </div>
+
+      <PdfExportPanel
+        collection="journal"
+        pageSize={exportPageSize}
+        onPageSizeChange={setExportPageSize}
+        onDownload={handleExport}
+        exporting={exporting}
+        loading={loading}
+        count={totalEntries}
+      />
 
       {/* ── Rich stats bar ───────────────────────────────────── */}
       {!loading && allEntries.length > 0 && (
