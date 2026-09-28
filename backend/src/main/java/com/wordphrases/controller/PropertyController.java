@@ -6,6 +6,7 @@ import com.wordphrases.dto.request.PropertyRequest;
 import com.wordphrases.dto.response.ApiResponse;
 import com.wordphrases.dto.response.BuilderInstallmentResponse;
 import com.wordphrases.dto.response.PropertyResponse;
+import com.wordphrases.model.PropertyMoneyAudit;
 import com.wordphrases.service.PropertyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +48,11 @@ public class PropertyController extends BaseController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         propertyService.delete(getCurrentUserId(), id);
         return ResponseEntity.ok(ApiResponse.ok("Property deleted", null));
+    }
+
+    @GetMapping("/{id}/audit")
+    public ResponseEntity<ApiResponse<List<PropertyMoneyAudit>>> audit(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(propertyService.getAudit(getCurrentUserId(), id)));
     }
 
     // ─── Builder Installments ─────────────────────────────────────────────────────

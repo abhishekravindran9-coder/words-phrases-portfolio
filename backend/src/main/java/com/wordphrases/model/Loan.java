@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +47,13 @@ public class Loan {
 
     @Column(name = "account_number", length = 50)
     private String accountNumber;
+
+    @Column(name = "emi_due_day") private Integer emiDueDay;
+    @Column(name = "bank_confirmed_rate", precision = 12, scale = 6) private BigDecimal bankConfirmedRate;
+    @Column(name = "bank_confirmed_rate_date") private LocalDate bankConfirmedRateDate;
+    @Column(name = "bank_confirmed_emi_start_date") private LocalDate bankConfirmedEmiStartDate;
+    @Column(name = "bank_confirmed_outstanding", precision = 19, scale = 2) private BigDecimal bankConfirmedOutstanding;
+    @Column(name = "bank_checkpoint_date") private LocalDate bankCheckpointDate;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

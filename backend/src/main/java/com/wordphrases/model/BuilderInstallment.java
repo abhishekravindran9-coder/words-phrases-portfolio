@@ -48,6 +48,13 @@ public class BuilderInstallment {
     @Column(name = "paid_date")
     private LocalDate paidDate;
 
+    @Column(name = "payee_type", length = 32)
+    private String payeeType;
+    @Column(name = "payment_reference", length = 120)
+    private String paymentReference;
+    @Column(name = "payment_mode", length = 32)
+    private String paymentMode;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

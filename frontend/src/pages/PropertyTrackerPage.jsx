@@ -235,7 +235,7 @@ export default function PropertyTrackerPage() {
                       cls: '',
                     },
                     {
-                      label: p.hasLoan ? 'Outstanding' : 'Loan Plan',
+                      label: p.hasLoan ? (p.loanClosed ? 'Loan Closed' : 'Outstanding') : 'Loan Plan',
                       value: p.hasLoan && p.loanOutstanding != null
                         ? fmtShort(p.loanOutstanding)
                         : (p.loanAmountPlanned ? fmtShort(p.loanAmountPlanned) : '—'),
@@ -247,6 +247,11 @@ export default function PropertyTrackerPage() {
                       <p className={`font-bold text-xs sm:text-sm truncate ${s.cls || 'text-gray-800 dark:text-gray-100'}`}>{s.value}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--mv-line)] pt-3 text-xs">
+                  <span className="text-[var(--mv-ink-soft)]">Pending <strong className="text-[var(--mv-ink)]">₹{fmt(p.pendingInstallmentAmount)}</strong></span>
+                  {p.overdueInstallmentCount > 0 && <span className="font-bold text-[var(--mv-terracotta)]">{p.overdueInstallmentCount} overdue · ₹{fmt(p.overdueInstallmentAmount)}</span>}
                 </div>
 
                 {/* ── Progress bars ───────────────────────────────────── */}

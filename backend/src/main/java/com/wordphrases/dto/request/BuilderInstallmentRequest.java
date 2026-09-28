@@ -9,4 +9,7 @@ public class BuilderInstallmentRequest {
     private Double amount;
     private LocalDate dueDate;
     private String description;
+    private String payeeType;
+    private String paymentReference;
+    private String paymentMode;
 }

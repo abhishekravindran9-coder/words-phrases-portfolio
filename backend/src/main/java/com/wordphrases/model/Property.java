@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ import java.util.List;
     indexes = { @Index(name = "idx_properties_user_id", columnList = "user_id") }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@SQLRestriction("deleted_at IS NULL")
 public class Property {
 
     @Id
@@ -58,6 +60,9 @@ public class Property {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
 
     @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @Builder.Default

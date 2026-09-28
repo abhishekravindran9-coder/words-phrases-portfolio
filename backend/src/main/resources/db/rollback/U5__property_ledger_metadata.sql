@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS idx_property_rate_history_loan_date;
+DROP TABLE IF EXISTS property_loan_rate_history;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS bank_checkpoint_date;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS bank_confirmed_outstanding;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS bank_confirmed_emi_start_date;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS bank_confirmed_rate_date;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS bank_confirmed_rate;
+ALTER TABLE property_loans DROP COLUMN IF EXISTS emi_due_day;
+ALTER TABLE builder_installments DROP COLUMN IF EXISTS payment_mode;
+ALTER TABLE builder_installments DROP COLUMN IF EXISTS payment_reference;
+ALTER TABLE builder_installments DROP COLUMN IF EXISTS payee_type;

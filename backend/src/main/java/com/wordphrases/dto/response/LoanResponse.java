@@ -47,4 +47,10 @@ public class LoanResponse {
     private Integer monthsSaved;
     private Integer prepaymentCount;
     private Double interestPaidTillNow;
+    private Integer emiDueDay;
+    private Double bankConfirmedRate;
+    private LocalDate bankConfirmedRateDate;
+    private LocalDate bankConfirmedEmiStartDate;
+    private Double bankConfirmedOutstanding;
+    private LocalDate bankCheckpointDate;
 }

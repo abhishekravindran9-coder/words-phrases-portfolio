@@ -18,4 +18,7 @@ public class BuilderInstallmentResponse {
     private Double paidViaSelf;
     private LocalDate paidDate;
     private LocalDateTime createdAt;
+    private String payeeType;
+    private String paymentReference;
+    private String paymentMode;
 }

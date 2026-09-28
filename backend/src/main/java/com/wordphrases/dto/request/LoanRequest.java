@@ -13,4 +13,10 @@ public class LoanRequest {
     private LocalDate emiStartDate;
     private String bankName;
     private String accountNumber;
+    private Integer emiDueDay;
+    private Double bankConfirmedRate;
+    private LocalDate bankConfirmedRateDate;
+    private LocalDate bankConfirmedEmiStartDate;
+    private Double bankConfirmedOutstanding;
+    private LocalDate bankCheckpointDate;
 }

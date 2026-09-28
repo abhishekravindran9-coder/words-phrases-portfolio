@@ -102,6 +102,7 @@ export default function LoanTab({ propertyId }) {
   const interestSavingPct = (loan.originalTotalInterest ?? 0) > 0
     ? Math.round((loan.interestSaved / loan.originalTotalInterest) * 100)
     : 0;
+  const loanClosed = loan.outstandingBalance === 0 && loan.remainingEmiCount === 0;
 
   const dueChipColor =
     daysLeft == null ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
@@ -126,7 +127,7 @@ export default function LoanTab({ propertyId }) {
           )}
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
             loan.interestType === 'FLOATING'
               ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
               : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -144,7 +145,7 @@ export default function LoanTab({ propertyId }) {
         {/* Big % + principal cleared */}
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{pct.toFixed(1)}%</p>
+            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{loanClosed ? 'Closed' : `${pct.toFixed(1)}%`}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">of loan repaid</p>
           </div>
           <div className="text-right">
@@ -172,8 +173,8 @@ export default function LoanTab({ propertyId }) {
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
             <span className="font-medium">EMI Timeline</span>
             <span className="font-semibold text-gray-700 dark:text-gray-300">
-              {loan.paidEmiCount} / {loan.tenureMonths} paid
-              <span className="font-normal text-gray-400 ml-1">({timelinePct.toFixed(1)}%)</span>
+              {loanClosed ? `Closed ${loan.monthsSaved ?? 0} months early` : `${loan.paidEmiCount} / ${loan.tenureMonths} paid`}
+              {!loanClosed && <span className="font-normal text-gray-400 ml-1">({timelinePct.toFixed(1)}%)</span>}
             </span>
           </div>
           <div className="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
@@ -182,7 +183,7 @@ export default function LoanTab({ propertyId }) {
               style={{ width: `${Math.min(100, timelinePct)}%` }}
             />
           </div>
-          <p className="text-[10px] text-gray-400 dark:text-gray-500">{loan.remainingEmiCount} EMIs remaining</p>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">{loanClosed ? 'No future EMI obligations' : `${loan.remainingEmiCount} EMIs remaining`}</p>
         </div>
 
         {/* Chips */}
@@ -193,7 +194,7 @@ export default function LoanTab({ propertyId }) {
               {yearsLeft && <span className="text-gray-400 dark:text-gray-500 font-normal">· {yearsLeft} yrs left</span>}
             </span>
           )}
-          {loan.nextEmiDueDate && (
+          {!loanClosed && loan.nextEmiDueDate && (
             <span className={`inline-flex items-center gap-1.5 text-xs rounded-full px-3 py-1 font-medium ${dueChipColor}`}>
               📅 {daysLeft === 0 ? 'EMI due today' : daysLeft < 0 ? `EMI overdue by ${Math.abs(daysLeft)}d` : `Due in ${daysLeft}d`}
               {' '}· ₹{fmt(loan.computedEmi)}

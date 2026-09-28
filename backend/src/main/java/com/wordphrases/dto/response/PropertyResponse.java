@@ -36,7 +36,16 @@ public class PropertyResponse {
     private Integer loanPaidCount;
     private Integer loanTotalMonths;
     private Double loanPercentRepaid;
+    private boolean loanClosed;
+    private LocalDate loanActualClosureDate;
+    private Integer loanMonthsSaved;
     private Double nextInstallmentAmount;
     private LocalDate nextInstallmentDate;
     private String nextInstallmentDescription;
+    private Double pendingInstallmentAmount;
+    private Double paidViaSelf;
+    private Double paidViaLoan;
+    private Integer overdueInstallmentCount;
+    private Double overdueInstallmentAmount;
+    private String propertyStatus;
 }

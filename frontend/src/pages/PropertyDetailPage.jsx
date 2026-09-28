@@ -12,14 +12,14 @@ import LoanTab from '../components/property/LoanTab';
 import EmiScheduleTab from '../components/property/EmiScheduleTab';
 import PrepaymentTab from '../components/property/PrepaymentTab';
 import InsightsTab from '../components/property/InsightsTab';
+import PaymentsTab from '../components/property/PaymentsTab';
+import DocumentsTab from '../components/property/DocumentsTab';
 
 const TABS = [
   { id: 'overview',     label: 'Overview',        shortLabel: 'Home',    emoji: '🏠' },
-  { id: 'installments', label: 'Builder Payments', shortLabel: 'Builder', emoji: '📋' },
+  { id: 'payments',     label: 'Payments',         shortLabel: 'Pay',     emoji: '💳' },
   { id: 'loan',         label: 'Loan',             shortLabel: 'Loan',    emoji: '🏦' },
-  { id: 'emi',          label: 'EMI Schedule',     shortLabel: 'EMI',     emoji: '📅' },
-  { id: 'prepayments',  label: 'Prepayments',      shortLabel: 'Prepay',  emoji: '⚡' },
-  { id: 'insights',     label: 'Insights',         shortLabel: 'Stats',   emoji: '📊' },
+  { id: 'documents',    label: 'Documents',        shortLabel: 'Docs',   emoji: '📁' },
 ];
 
 function fmt(n) {
@@ -190,6 +190,24 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
+      <section className="grid gap-3 sm:grid-cols-[1.4fr_1fr_1fr]" aria-label="Property command center summary">
+        <div className="rounded-[var(--mv-radius-lg)] border border-[var(--mv-terracotta)]/25 bg-[var(--mv-paper-deep)] p-5">
+          <p className="mv-eyebrow">Pending property cost</p>
+          <p className="mv-display mt-1 text-3xl text-[var(--mv-ink)]">₹{fmt(property.pendingInstallmentAmount)}</p>
+          <p className="mt-1 text-xs text-[var(--mv-ink-soft)]">{property.percentComplete?.toFixed(2) || '0.00'}% paid by installment value</p>
+        </div>
+        <div className="rounded-[var(--mv-radius-lg)] border border-[var(--mv-line)] bg-[var(--mv-paper)] p-5">
+          <p className="mv-eyebrow">Needs attention</p>
+          <p className="mt-1 text-2xl font-bold text-[var(--mv-ink)]">{property.overdueInstallmentCount || 0}</p>
+          <p className="text-xs text-[var(--mv-ink-soft)]">overdue obligations</p>
+        </div>
+        <div className="rounded-[var(--mv-radius-lg)] border border-[var(--mv-line)] bg-[var(--mv-paper)] p-5">
+          <p className="mv-eyebrow">Loan state</p>
+          <p className="mt-1 text-2xl font-bold text-[var(--mv-moss)]">{property.loanClosed ? 'Closed' : property.hasLoan ? 'Open' : 'None'}</p>
+          <p className="text-xs text-[var(--mv-ink-soft)]">{property.loanClosed ? `${property.loanMonthsSaved || 0} months early` : 'Derived from records'}</p>
+        </div>
+      </section>
+
       {/* ── Tab nav ── */}
       <div className="flex gap-0 overflow-x-auto border-b border-gray-200 dark:border-gray-700">
         {TABS.map((t) => (
@@ -212,11 +230,9 @@ export default function PropertyDetailPage() {
       {/* ── Tab content ── */}
       <div>
         {tab === 'overview'     && <OverviewTab property={property} loan={loan} setTab={setTab} />}
-        {tab === 'installments' && <BuilderInstallmentsTab propertyId={id} />}
+        {tab === 'payments'     && <PaymentsTab propertyId={id} />}
         {tab === 'loan'         && <LoanTab propertyId={id} />}
-        {tab === 'emi'          && <EmiScheduleTab propertyId={id} />}
-        {tab === 'prepayments'  && <PrepaymentTab propertyId={id} />}
-        {tab === 'insights'     && <InsightsTab propertyId={id} />}
+        {tab === 'documents'    && <DocumentsTab propertyId={id} />}
       </div>
     </div>
   );
@@ -244,6 +260,7 @@ function OverviewTab({ property, loan, setTab }) {
   const loanTotalInterest     = loan?.totalInterest;
   const loanPaidCount         = property.loanPaidCount    || 0;
   const loanTotalMonths       = property.loanTotalMonths  || 0;
+  const loanClosed            = property.loanClosed || (loan?.outstandingBalance === 0 && loan?.remainingEmiCount === 0);
 
   return (
     <div className="space-y-4">
@@ -305,7 +322,7 @@ function OverviewTab({ property, loan, setTab }) {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Self</p>
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{fmtCr(property.selfContributionPlanned)}</p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-500">{selfPct}% of total</p>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-500">Planned · {selfPct}% of total</p>
             </div>
           </div>
           <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-100 dark:border-amber-800/30">
@@ -313,7 +330,7 @@ function OverviewTab({ property, loan, setTab }) {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Loan</p>
               <p className="text-sm font-bold text-amber-700 dark:text-amber-300">{fmtCr(property.loanAmountPlanned)}</p>
-              <p className="text-[11px] text-amber-600 dark:text-amber-500">{loanPct}% of total</p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-500">Planned · {loanPct}% of total</p>
             </div>
           </div>
         </div>
@@ -366,7 +383,7 @@ function OverviewTab({ property, loan, setTab }) {
             </div>
           </div>
 
-          <button onClick={() => setTab('installments')}
+          <button onClick={() => setTab('payments')}
             className="mt-auto flex items-center justify-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium pt-2 border-t border-gray-100 dark:border-gray-700">
             View all installments <ArrowRightIcon className="h-3 w-3" />
           </button>
@@ -380,7 +397,7 @@ function OverviewTab({ property, loan, setTab }) {
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Loan</p>
             </div>
             {property.hasLoan && (
-              <span className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full">Active</span>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${loanClosed ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'}`}>{loanClosed ? 'Closed' : 'Active'}</span>
             )}
           </div>
 
@@ -409,7 +426,7 @@ function OverviewTab({ property, loan, setTab }) {
                   <div className="flex justify-between text-xs">
                     <span className="text-gray-500 dark:text-gray-400">Tenure progress</span>
                     <span className="font-medium text-gray-600 dark:text-gray-400">
-                      {loanPaidCount}/{loanTotalMonths} mo ({(loanTimelinePct ?? (loanPaidCount / loanTotalMonths * 100)).toFixed(0)}%)
+                      {loanClosed ? `Closed ${property.loanMonthsSaved ?? 0} months early` : `${loanPaidCount}/${loanTotalMonths} mo (${(loanTimelinePct ?? (loanPaidCount / loanTotalMonths * 100)).toFixed(0)}%)`}
                     </span>
                   </div>
                   <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -571,10 +588,10 @@ function OverviewTab({ property, loan, setTab }) {
 
       {/* ── Quick Nav ── */}
       <div className="grid grid-cols-3 gap-2">
-        {[
-          { tab: 'installments', label: 'Builder Payments', emoji: '📋' },
-          { tab: 'insights',     label: 'Insights',         emoji: '📊' },
-          { tab: property.hasLoan ? 'prepayments' : 'loan', label: property.hasLoan ? 'Prepayments' : 'Add Loan', emoji: property.hasLoan ? '⚡' : '🏦' },
+          {[
+          { tab: 'payments',  label: 'Payments',  emoji: '💳' },
+          { tab: 'loan',      label: 'Loan',      emoji: '🏦' },
+          { tab: 'documents', label: 'Documents', emoji: '📁' },
         ].map(({ tab: t, label, emoji }) => (
           <button key={t} onClick={() => setTab(t)}
             className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-100 dark:border-gray-700">

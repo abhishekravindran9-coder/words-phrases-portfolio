@@ -29,10 +29,9 @@ public class LoanService {
 
     /** @param annualRate annual interest % (e.g. 8.5 for 8.5%) */
     public double calculateEmi(double principal, double annualRate, int tenureMonths) {
-        if (annualRate == 0) return round(principal / tenureMonths);
-        double r = annualRate / 12.0 / 100.0;
-        return round(principal * r * Math.pow(1 + r, tenureMonths)
-                / (Math.pow(1 + r, tenureMonths) - 1));
+        return PropertyFinancialCalculator.calculateEmi(
+            java.math.BigDecimal.valueOf(principal),
+            java.math.BigDecimal.valueOf(annualRate), tenureMonths).doubleValue();
     }
 
     // ─── Loan CRUD ────────────────────────────────────────────────────────────────
@@ -66,6 +65,12 @@ public class LoanService {
             if (req.getEmiStartDate() != null)       loan.setEmiStartDate(req.getEmiStartDate());
             if (req.getBankName() != null)           loan.setBankName(req.getBankName());
             if (req.getAccountNumber() != null)      loan.setAccountNumber(req.getAccountNumber());
+            if (req.getEmiDueDay() != null)            loan.setEmiDueDay(req.getEmiDueDay());
+            if (req.getBankConfirmedRate() != null)   loan.setBankConfirmedRate(java.math.BigDecimal.valueOf(req.getBankConfirmedRate()));
+            if (req.getBankConfirmedRateDate() != null) loan.setBankConfirmedRateDate(req.getBankConfirmedRateDate());
+            if (req.getBankConfirmedEmiStartDate() != null) loan.setBankConfirmedEmiStartDate(req.getBankConfirmedEmiStartDate());
+            if (req.getBankConfirmedOutstanding() != null) loan.setBankConfirmedOutstanding(java.math.BigDecimal.valueOf(req.getBankConfirmedOutstanding()));
+            if (req.getBankCheckpointDate() != null) loan.setBankCheckpointDate(req.getBankCheckpointDate());
         }
         return toResponse(loanRepository.save(loan));
     }
@@ -317,8 +322,12 @@ public class LoanService {
             List<EmiPayment> paidEmis    = emiPaymentRepository.findByLoanOrderByMonthNumberAsc(loan);
             List<Prepayment> prepayments = prepaymentRepository.findByLoanOrderByPrepaymentDateAsc(loan);
             List<AmortizationEntryResponse> schedule = buildSchedule(loan, paidEmis, prepayments);
+            boolean loanClosed = PropertyFinancialCalculator.isClosed(schedule);
 
             double totalInterest  = schedule.stream().mapToDouble(AmortizationEntryResponse::getInterest).sum();
+                double baselineInterest = buildSchedule(loan, paidEmis, Collections.emptyList()).stream()
+                    .mapToDouble(AmortizationEntryResponse::getInterest).sum();
+                double interestSaved = round(Math.max(0, baselineInterest - totalInterest));
             double paidInterest   = schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid()))
                                         .mapToDouble(AmortizationEntryResponse::getInterest).sum();
             double paidPrincipal  = schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid()))
@@ -340,6 +349,7 @@ public class LoanService {
             int overdueEmiCount = 0;
             boolean nextEmiAdded = false;
             for (AmortizationEntryResponse entry : schedule) {
+                if (loanClosed) break;
                 if (!Boolean.TRUE.equals(entry.getPaid())) {
                     boolean overdue = entry.getDate().isBefore(today);
                     boolean dueSoon = !overdue && !entry.getDate().isAfter(today.plusDays(45));
@@ -371,7 +381,7 @@ public class LoanService {
             metrics.put("Interest Burden", String.format("%.1f%%", interestBurden) + " of principal");
             metrics.put("Total Interest", "₹" + String.format("%,.0f", totalInterest));
             metrics.put("Interest Saved via Prepayments",
-                    totalPrepaid > 0 ? "₹" + String.format("%,.0f", totalPrepaid) + " prepaid" : "None yet");
+                    interestSaved > 0 ? "₹" + String.format("%,.0f", interestSaved) : "None yet");
             if (closureDate != null) {
                 metrics.put("Loan Closure", closureDate.toString());
                 long monthsLeft = today.until(closureDate, java.time.temporal.ChronoUnit.MONTHS);
@@ -410,7 +420,9 @@ public class LoanService {
             }
 
             // Prepayment celebration
-            if (totalPrepaid > 0 && totalPrepaid >= loan.getSanctionedAmount() * 0.05) {
+            if (loanClosed) {
+                suggestions.add("Loan closed on " + closureDate + ". No future EMI obligations remain.");
+            } else if (totalPrepaid > 0 && totalPrepaid >= loan.getSanctionedAmount() * 0.05) {
                 suggestions.add("You've prepaid " + String.format("%.1f%%", (totalPrepaid / loan.getSanctionedAmount()) * 100) +
                         " of your principal (₹" + String.format("%,.0f", totalPrepaid) + ") — great discipline! " +
                         "Keep it up to close early.");
@@ -514,6 +526,8 @@ public class LoanService {
     private List<AmortizationEntryResponse> buildSchedule(Loan loan,
                                                            List<EmiPayment> payments,
                                                            List<Prepayment> prepayments) {
+        return PropertyFinancialCalculator.buildSchedule(loan, payments, prepayments);
+        /*
         if (loan.getEmiStartDate() == null || loan.getSanctionedAmount() == null) return List.of();
 
         double outstanding = loan.getSanctionedAmount();
@@ -586,7 +600,7 @@ public class LoanService {
             date = date.plusMonths(1);
         }
 
-        return schedule;
+        return schedule; */
     }
 
     private int computeRemainingTenure(double principal, double annualRate, double emi) {
@@ -640,18 +654,19 @@ public class LoanService {
         LocalDate closureDate         = start != null ? start.plusMonths(loan.getTenureMonths() - 1L) : null;
         LocalDate actualClosureDate   = schedule.isEmpty() ? closureDate
                                         : schedule.get(schedule.size() - 1).getDate();
-        LocalDate nextEmiDueDate      = start != null ? start.plusMonths(paidCount) : null;
+        double safeOutstanding        = Math.max(0, outstanding);
+        boolean closed                 = safeOutstanding <= 0.01 && paidCount >= schedule.size();
+        LocalDate nextEmiDueDate       = closed || start == null ? null : start.plusMonths(paidCount);
         Long daysUntilNextEmi         = nextEmiDueDate != null
                                         ? ChronoUnit.DAYS.between(LocalDate.now(), nextEmiDueDate) : null;
-        double safeOutstanding        = Math.max(0, outstanding);
         double principalRepaid        = round(loan.getSanctionedAmount() - safeOutstanding);
         // percentComplete = principal actually repaid / sanctioned amount (accurate financial measure)
         double percentComplete        = round((principalRepaid / loan.getSanctionedAmount()) * 100.0);
         // timelinePercent = EMIs paid / original tenure (time-based proxy)
-        double timelinePercent        = round((paidCount * 100.0) / loan.getTenureMonths());
+        double timelinePercent        = closed ? 100.0 : round((paidCount * 100.0) / loan.getTenureMonths());
         double interestCostRatio      = round((totalInterest / loan.getSanctionedAmount()) * 100.0);
-        double currentMonthInterest   = round(safeOutstanding * loan.getInterestRate() / 1200.0);
-        double currentMonthPrincipal  = round(computedEmi - currentMonthInterest);
+        double currentMonthInterest   = closed ? 0.0 : round(safeOutstanding * loan.getInterestRate() / 1200.0);
+        double currentMonthPrincipal  = closed ? 0.0 : round(computedEmi - currentMonthInterest);
 
         return LoanResponse.builder()
                 .id(loan.getId())
@@ -668,7 +683,7 @@ public class LoanService {
                 .totalPayment(round(loan.getSanctionedAmount() + totalInterest))
                 .outstandingBalance(round(safeOutstanding))
                 .paidEmiCount(paidCount)
-                .remainingEmiCount(schedule.size() - paidCount)
+                .remainingEmiCount(closed ? 0 : Math.max(0, schedule.size() - paidCount))
                 .totalPrepaid(round(totalPrepaid))
                 .closureDate(closureDate)
                 .actualClosureDate(actualClosureDate)
@@ -685,6 +700,12 @@ public class LoanService {
                 .monthsSaved(monthsSaved)
                 .prepaymentCount(prepaymentCount)
                 .interestPaidTillNow(interestPaidTillNow)
+                .emiDueDay(loan.getEmiDueDay())
+                .bankConfirmedRate(loan.getBankConfirmedRate() == null ? null : loan.getBankConfirmedRate().doubleValue())
+                .bankConfirmedRateDate(loan.getBankConfirmedRateDate())
+                .bankConfirmedEmiStartDate(loan.getBankConfirmedEmiStartDate())
+                .bankConfirmedOutstanding(loan.getBankConfirmedOutstanding() == null ? null : loan.getBankConfirmedOutstanding().doubleValue())
+                .bankCheckpointDate(loan.getBankCheckpointDate())
                 .build();
     }
 

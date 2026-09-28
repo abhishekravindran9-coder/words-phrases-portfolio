@@ -9,4 +9,7 @@ public class MarkInstallmentPaidRequest {
     private Double paidViaLoan;
     private Double paidViaSelf;
     private LocalDate paidDate;
+    private String payeeType;
+    private String paymentReference;
+    private String paymentMode;
 }

@@ -10,10 +10,13 @@ import com.wordphrases.model.BuilderInstallment;
 import com.wordphrases.model.Property;
 import com.wordphrases.model.User;
 import com.wordphrases.model.Prepayment;
+import com.wordphrases.model.EmiPayment;
+import com.wordphrases.model.PropertyMoneyAudit;
 import com.wordphrases.repository.BuilderInstallmentRepository;
 import com.wordphrases.repository.EmiPaymentRepository;
 import com.wordphrases.repository.PrepaymentRepository;
 import com.wordphrases.repository.PropertyRepository;
+import com.wordphrases.repository.PropertyMoneyAuditRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,7 @@ public class PropertyService {
     private final EmiPaymentRepository emiPaymentRepository;
     private final PrepaymentRepository prepaymentRepository;
     private final UserService userService;
+    private final PropertyMoneyAuditRepository auditRepository;
 
     // ─── Property CRUD ───────────────────────────────────────────────────────────
 
@@ -69,18 +73,42 @@ public class PropertyService {
         Property property = findOwned(userId, propertyId);
         if (req.getName() != null)                          property.setName(req.getName());
         if (req.getBuilderName() != null)                   property.setBuilderName(req.getBuilderName());
-        if (req.getTotalCost() != null)                     property.setTotalCost(req.getTotalCost());
+        if (req.getTotalCost() != null) {
+            audit(userId, "PROPERTY", propertyId, "totalCost", property.getTotalCost(), req.getTotalCost());
+            property.setTotalCost(req.getTotalCost());
+        }
         if (req.getLocation() != null)                      property.setLocation(req.getLocation());
         if (req.getPossessionDate() != null)                property.setPossessionDate(req.getPossessionDate());
-        if (req.getSelfContributionPlanned() != null)       property.setSelfContributionPlanned(req.getSelfContributionPlanned());
-        if (req.getLoanAmountPlanned() != null)             property.setLoanAmountPlanned(req.getLoanAmountPlanned());
+        if (req.getSelfContributionPlanned() != null) {
+            audit(userId, "PROPERTY", propertyId, "selfContributionPlanned", property.getSelfContributionPlanned(), req.getSelfContributionPlanned());
+            property.setSelfContributionPlanned(req.getSelfContributionPlanned());
+        }
+        if (req.getLoanAmountPlanned() != null) {
+            audit(userId, "PROPERTY", propertyId, "loanAmountPlanned", property.getLoanAmountPlanned(), req.getLoanAmountPlanned());
+            property.setLoanAmountPlanned(req.getLoanAmountPlanned());
+        }
         return toResponse(propertyRepository.save(property));
     }
 
     @Transactional
     public void delete(Long userId, Long propertyId) {
         Property property = findOwned(userId, propertyId);
-        propertyRepository.delete(property);
+        property.setDeletedAt(java.time.Instant.now());
+        propertyRepository.save(property);
+    }
+
+    private void audit(Long userId, String entityType, Long entityId, String field, Object oldValue, Object newValue) {
+        if (java.util.Objects.equals(oldValue, newValue)) return;
+        auditRepository.save(PropertyMoneyAudit.builder().userId(userId).entityType(entityType)
+                .entityId(entityId).fieldName(field).oldValue(String.valueOf(oldValue))
+                .newValue(String.valueOf(newValue)).changedAt(java.time.Instant.now()).build());
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<PropertyMoneyAudit> getAudit(Long userId, Long propertyId) {
+        findOwned(userId, propertyId);
+        return auditRepository.findAll().stream().filter(a -> a.getEntityId().equals(propertyId)
+                || ("INSTALLMENT".equals(a.getEntityType()) && a.getEntityId() != null)).toList();
     }
 
     // ─── Builder Installments ────────────────────────────────────────────────────
@@ -110,9 +138,15 @@ public class PropertyService {
         Property property = findOwned(userId, propertyId);
         BuilderInstallment inst = installmentRepository.findByIdAndProperty(instId, property)
                 .orElseThrow(() -> new ResourceNotFoundException("Installment not found"));
-        if (req.getAmount() != null)      inst.setAmount(req.getAmount());
+        if (req.getAmount() != null) {
+            audit(userId, "INSTALLMENT", instId, "amount", inst.getAmount(), req.getAmount());
+            inst.setAmount(req.getAmount());
+        }
         if (req.getDueDate() != null)     inst.setDueDate(req.getDueDate());
         if (req.getDescription() != null) inst.setDescription(req.getDescription());
+        if (req.getPayeeType() != null) inst.setPayeeType(req.getPayeeType());
+        if (req.getPaymentReference() != null) inst.setPaymentReference(req.getPaymentReference());
+        if (req.getPaymentMode() != null) inst.setPaymentMode(req.getPaymentMode());
         return toInstallmentResponse(installmentRepository.save(inst));
     }
 
@@ -123,9 +157,15 @@ public class PropertyService {
         BuilderInstallment inst = installmentRepository.findByIdAndProperty(instId, property)
                 .orElseThrow(() -> new ResourceNotFoundException("Installment not found"));
         inst.setPaid(true);
+        audit(userId, "INSTALLMENT", instId, "paid", inst.getPaid(), true);
+        audit(userId, "INSTALLMENT", instId, "paidViaLoan", inst.getPaidViaLoan(), nullOr(req.getPaidViaLoan(), 0.0));
+        audit(userId, "INSTALLMENT", instId, "paidViaSelf", inst.getPaidViaSelf(), nullOr(req.getPaidViaSelf(), 0.0));
         inst.setPaidViaLoan(nullOr(req.getPaidViaLoan(), 0.0));
         inst.setPaidViaSelf(nullOr(req.getPaidViaSelf(), 0.0));
         inst.setPaidDate(req.getPaidDate() != null ? req.getPaidDate() : LocalDate.now());
+        inst.setPayeeType(req.getPayeeType());
+        inst.setPaymentReference(req.getPaymentReference());
+        inst.setPaymentMode(req.getPaymentMode());
         return toInstallmentResponse(installmentRepository.save(inst));
     }
 
@@ -153,6 +193,14 @@ public class PropertyService {
         double paidAmt  = installments.stream()
                 .filter(i -> Boolean.TRUE.equals(i.getPaid()))
                 .mapToDouble(i -> nullOr(i.getAmount(), 0.0)).sum();
+        double paidViaSelf = installments.stream().mapToDouble(i -> nullOr(i.getPaidViaSelf(), 0.0)).sum();
+        double paidViaLoan = installments.stream().mapToDouble(i -> nullOr(i.getPaidViaLoan(), 0.0)).sum();
+        LocalDate today = LocalDate.now();
+        int overdueCount = (int) installments.stream().filter(i -> !Boolean.TRUE.equals(i.getPaid())
+            && i.getDueDate() != null && i.getDueDate().isBefore(today)).count();
+        double overdueAmount = installments.stream().filter(i -> !Boolean.TRUE.equals(i.getPaid())
+            && i.getDueDate() != null && i.getDueDate().isBefore(today))
+            .mapToDouble(i -> nullOr(i.getAmount(), 0.0)).sum();
         double pct = totalAmt > 0 ? (paidAmt / totalAmt) * 100 : 0.0;
 
         // Possession countdown
@@ -174,6 +222,9 @@ public class PropertyService {
         Integer loanPaidCount = null;
         Integer loanTotalMonths = null;
         Double loanPercentRepaid = null;
+        boolean loanClosed = false;
+        LocalDate loanActualClosureDate = null;
+        Integer loanMonthsSaved = null;
         if (loan != null) {
             loanTotalMonths = loan.getTenureMonths();
             double r = loan.getInterestRate() / 1200.0;
@@ -185,31 +236,17 @@ public class PropertyService {
                     .stream().filter(ep -> Boolean.TRUE.equals(ep.getPaid())).count();
             loanPaidCount = paid;
 
-            // Walk the amortization schedule applying prepayments to get accurate outstanding/%.
-            // Group prepayments by year-month (same logic as LoanService.buildSchedule).
             List<Prepayment> prepList = prepaymentRepository.findByLoanOrderByPrepaymentDateAsc(loan);
-            java.util.Map<String, Double> prepByYM = new java.util.HashMap<>();
-            for (Prepayment pp : prepList) {
-                String ym = pp.getPrepaymentDate().getYear() + "-" + pp.getPrepaymentDate().getMonthValue();
-                prepByYM.merge(ym, pp.getAmount(), Double::sum);
-            }
-            double balance = principal;
-            LocalDate emiStart = loan.getEmiStartDate();
-            for (int i = 0; i < paid; i++) {
-                // Apply any prepayment for this month before computing interest
-                if (emiStart != null) {
-                    LocalDate monthDate = emiStart.plusMonths(i);
-                    String ym = monthDate.getYear() + "-" + monthDate.getMonthValue();
-                    Double prepaid = prepByYM.get(ym);
-                    if (prepaid != null) balance = Math.max(0, balance - prepaid);
-                }
-                double interest = balance * r;
-                double principalPortion = Math.min(loanEmi - interest, balance);
-                if (principalPortion < 0) principalPortion = 0;
-                balance = Math.max(0, balance - principalPortion);
-            }
+            List<EmiPayment> payments = emiPaymentRepository.findByLoanOrderByMonthNumberAsc(loan);
+            List<com.wordphrases.dto.response.AmortizationEntryResponse> schedule = PropertyFinancialCalculator.buildSchedule(loan, payments, prepList);
+            double balance = schedule.stream().filter(e -> Boolean.TRUE.equals(e.getPaid()))
+                    .mapToDouble(com.wordphrases.dto.response.AmortizationEntryResponse::getBalance)
+                    .reduce((first, second) -> second).orElse(principal);
             loanOutstanding = round(balance);
             loanPercentRepaid = round(Math.min(100, ((principal - balance) / principal) * 100));
+            loanClosed = PropertyFinancialCalculator.isClosed(schedule);
+            loanActualClosureDate = schedule.isEmpty() ? null : schedule.get(schedule.size() - 1).getDate();
+            loanMonthsSaved = Math.max(0, loan.getTenureMonths() - schedule.size());
         }
 
         return PropertyResponse.builder()
@@ -235,9 +272,18 @@ public class PropertyService {
                 .loanPaidCount(loanPaidCount)
                 .loanTotalMonths(loanTotalMonths)
                 .loanPercentRepaid(loanPercentRepaid)
+                .loanClosed(loanClosed)
+                .loanActualClosureDate(loanActualClosureDate)
+                .loanMonthsSaved(loanMonthsSaved)
                 .nextInstallmentAmount(nextInstAmt)
                 .nextInstallmentDate(nextInstDate)
                 .nextInstallmentDescription(nextInstDesc)
+                .pendingInstallmentAmount(Math.max(0, totalAmt - paidAmt))
+                .paidViaSelf(paidViaSelf)
+                .paidViaLoan(paidViaLoan)
+                .overdueInstallmentCount(overdueCount)
+                .overdueInstallmentAmount(overdueAmount)
+                .propertyStatus(p.getPossessionDate() != null && !p.getPossessionDate().isAfter(today) ? "POSSESSED" : "IN_PROGRESS")
                 .build();
     }
 
@@ -252,6 +298,9 @@ public class PropertyService {
                 .paidViaSelf(i.getPaidViaSelf())
                 .paidDate(i.getPaidDate())
                 .createdAt(i.getCreatedAt())
+                .payeeType(i.getPayeeType())
+                .paymentReference(i.getPaymentReference())
+                .paymentMode(i.getPaymentMode())
                 .build();
     }
 
