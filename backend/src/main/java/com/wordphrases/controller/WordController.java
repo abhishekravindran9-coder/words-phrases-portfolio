@@ -34,6 +34,14 @@ public class WordController extends BaseController {
         return ResponseEntity.ok(ApiResponse.ok(wordService.getStatsForUser(getCurrentUserId())));
     }
 
+    @GetMapping("/duplicates")
+    public ResponseEntity<ApiResponse<List<WordResponse>>> findDuplicates(
+            @RequestParam String word,
+            @RequestParam(required = false) String entryType,
+            @RequestParam(required = false) Long excludeId) {
+        return ResponseEntity.ok(ApiResponse.ok(wordService.findDuplicates(getCurrentUserId(), word, entryType, excludeId)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<Page<WordResponse>>> getWords(
             @RequestParam(required = false) String  query,
@@ -81,5 +89,11 @@ public class WordController extends BaseController {
     public ResponseEntity<ApiResponse<Void>> deleteWord(@PathVariable Long id) {
         wordService.deleteWord(getCurrentUserId(), id);
         return ResponseEntity.ok(ApiResponse.ok("Word deleted", null));
+    }
+
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<ApiResponse<WordResponse>> restoreWord(@PathVariable Long id) {
+        wordService.restoreWord(getCurrentUserId(), id);
+        return ResponseEntity.ok(ApiResponse.ok("Word restored", wordService.getWordById(getCurrentUserId(), id)));
     }
 }

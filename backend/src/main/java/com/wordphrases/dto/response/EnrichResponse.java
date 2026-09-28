@@ -20,5 +20,6 @@ public class EnrichResponse {
     private String notes;          // layman-terms explanation
     private String partOfSpeech;   // present for words, null for phrases
     private String phonetic;       // present for words, null for phrases
+    private String difficultyTier;
     private String source;         // "dictionary" | "gemini"
 }

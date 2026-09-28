@@ -29,4 +29,17 @@ public class WordRequest {
     private String audioUrl;
 
     private String notes;
+
+    private String difficultyTier;
+
+    private String pronunciation;
+    private String partOfSpeech;
+    private String etymology;
+    private String mnemonic;
+    private String usageNote;
+    private String synonyms;
+    private String antonyms;
+    private String sourceContext;
+    private String userExample;
+    private String userMnemonic;
 }

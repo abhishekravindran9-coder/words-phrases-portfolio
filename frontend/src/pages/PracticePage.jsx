@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { practiceService } from '../services/practiceService';
 import { quizService } from '../services/quizService';
 import PracticeCard from '../components/practice/PracticeCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Button from '../components/common/Button';
+import PageHeader from '../components/common/PageHeader';
 import toast from 'react-hot-toast';
 import {
   ArrowPathIcon, ArrowRightIcon, BookOpenIcon, CheckBadgeIcon,
@@ -78,11 +80,13 @@ function Metric({ icon: Icon, label, value, detail, accent = 'indigo' }) {
 }
 
 export default function PracticePage() {
+  const [searchParams] = useSearchParams();
   const [overview, setOverview] = useState(null);
   const [legacyQuizStats, setLegacyQuizStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [mode, setMode] = useState('DUE');
+  const requestedMode = searchParams.get('mode')?.toUpperCase();
+  const [mode, setMode] = useState(['DUE', 'CUSTOM', 'LEECHES'].includes(requestedMode) ? requestedMode : 'DUE');
   const [customLength, setCustomLength] = useState(10);
   const [format, setFormat] = useState('MIXED');
   const [items, setItems] = useState([]);
@@ -113,7 +117,7 @@ export default function PracticePage() {
     try {
       const queue = await practiceService.getQueue({ mode, size: customLength });
       if (!queue.words?.length) {
-        toast(mode === 'DUE' ? 'You are all caught up—no cards are due right now.' : 'Add vocabulary entries to start a custom session.');
+        toast(mode === 'DUE' ? 'You are all caught up—no cards are due right now.' : mode === 'LEECHES' ? 'No repeated-miss cards are available in this range.' : 'Add vocabulary entries to start a custom session.');
         return;
       }
       setItems(buildPracticeItems(queue.words, format));
@@ -163,14 +167,7 @@ export default function PracticePage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 pb-8">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-600 dark:text-primary-400">Recall, reinforce, grow</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-3xl">Practice</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">One practice rhythm for every word and every question style.</p>
-        </div>
-        {phase === 'session' && <button type="button" onClick={() => { if (window.confirm('Leave this session? Answers already submitted are saved.')) setPhase('setup'); }} className="min-h-10 self-start rounded-lg px-3 text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 sm:self-auto">Exit session</button>}
-      </header>
+      <PageHeader space="Learn" title="Practice" description="A focused rhythm for remembering words without rushing the work." action={phase === 'session' && <button type="button" onClick={() => { if (window.confirm('Leave this session? Answers already submitted are saved.')) setPhase('setup'); }} className="min-h-11 rounded-[var(--mv-radius-sm)] px-3 text-sm font-semibold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]">Exit session</button>} />
 
       {saveError && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">{saveError}</p>}
 
@@ -196,7 +193,7 @@ export default function PracticePage() {
 
               <div className="mt-5">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Choose your queue</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <button type="button" aria-pressed={mode === 'DUE'} onClick={() => setMode('DUE')} className={`rounded-xl border p-3 text-left transition-colors ${mode === 'DUE' ? 'border-primary-300 bg-primary-50/70 ring-1 ring-primary-100 dark:border-primary-700 dark:bg-primary-900/20 dark:ring-primary-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'}`}>
                     <span className="flex items-center justify-between gap-2"><span className="text-sm font-bold text-gray-900 dark:text-white">Due words</span><span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{dueCount} due</span></span>
                     <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">Work through cards scheduled for today.</span>
@@ -204,6 +201,10 @@ export default function PracticePage() {
                   <button type="button" aria-pressed={mode === 'CUSTOM'} onClick={() => setMode('CUSTOM')} className={`rounded-xl border p-3 text-left transition-colors ${mode === 'CUSTOM' ? 'border-primary-300 bg-primary-50/70 ring-1 ring-primary-100 dark:border-primary-700 dark:bg-primary-900/20 dark:ring-primary-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'}`}>
                     <span className="block text-sm font-bold text-gray-900 dark:text-white">Custom session</span>
                     <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">A random set from your full vocabulary.</span>
+                  </button>
+                  <button type="button" aria-pressed={mode === 'LEECHES'} onClick={() => setMode('LEECHES')} className={`rounded-xl border p-3 text-left transition-colors ${mode === 'LEECHES' ? 'border-primary-300 bg-primary-50/70 ring-1 ring-primary-100 dark:border-primary-700 dark:bg-primary-900/20 dark:ring-primary-900' : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'}`}>
+                    <span className="block text-sm font-bold text-gray-900 dark:text-white">Needs another look</span>
+                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">Practice cards with repeated misses.</span>
                   </button>
                 </div>
               </div>
@@ -232,7 +233,7 @@ export default function PracticePage() {
               </div>
 
               <Button onClick={startSession} loading={starting} disabled={mode === 'DUE' && dueCount === 0 || mode === 'CUSTOM' && cardCount === 0} size="lg" className="mt-5 min-h-12 w-full justify-center">
-                <SparklesIcon className="h-5 w-5" />{mode === 'DUE' ? `Start due practice · ${dueCount}` : `Start ${customLength}-card practice`}
+                <SparklesIcon className="h-5 w-5" />{mode === 'DUE' ? `Start due practice · ${dueCount}` : mode === 'LEECHES' ? 'Practice repeated-miss cards' : `Start ${customLength}-card practice`}
               </Button>
             </div>
 

@@ -36,6 +36,11 @@ export const wordService = {
     return res.data.data;
   },
 
+    async findDuplicates(word, entryType, excludeId) {
+      const res = await api.get('/words/duplicates', { params: { word, entryType, excludeId: excludeId || undefined } });
+      return res.data.data;
+    },
+
   async getWord(id) {
     const res = await api.get(`/words/${id}`);
     return res.data.data;
@@ -53,5 +58,10 @@ export const wordService = {
 
   async deleteWord(id) {
     await api.delete(`/words/${id}`);
+  },
+
+  async restoreWord(id) {
+    const res = await api.post(`/words/${id}/restore`);
+    return res.data.data;
   },
 };

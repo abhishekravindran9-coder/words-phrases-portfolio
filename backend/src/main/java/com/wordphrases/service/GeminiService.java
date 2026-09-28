@@ -47,6 +47,7 @@ public class GeminiService {
                   "definition": "<detailed definition including etymology, nuance, and usage context>",
                   "partOfSpeech": "<noun|verb|adjective|adverb|etc>",
                   "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
+                  "difficultyTier": "<EASY|MEDIUM|HARD|SUPER_HARD>",
                   "notes": "<detailed explanation in simple layman terms — how to remember it, common confusions to avoid, memorable analogy or mnemonic, and when to use it in everyday speech. Use plain text only, no asterisks, no markdown formatting>"
                 }
                 """.formatted(word);
@@ -67,10 +68,21 @@ public class GeminiService {
                 {
                   "definition": "<detailed meaning of the phrase including origin, context, and when it is used>",
                   "examples": ["<example sentence 1>", "<example sentence 2>", "<example sentence 3>", "<example sentence 4>"],
+                  "difficultyTier": "<EASY|MEDIUM|HARD|SUPER_HARD>",
                   "notes": "<detailed explanation in simple layman terms — the story or origin behind the phrase, a memorable analogy, common misuse to avoid, and how to use it naturally in conversation. Use plain text only, no asterisks, no markdown formatting>"
                 }
                 """.formatted(phrase);
         return callGemini(prompt, "phrase '" + phrase + "'");
+    }
+
+    public String generateWeeklyNarrative(String facts) {
+        String prompt = """
+                You are a concise learning coach. Turn these verified weekly facts into two warm,
+                specific sentences for the learner. Do not add numbers, percentages, dates, claims,
+                or facts that are not present. Do not use markdown.
+                Verified facts: %s
+                """.formatted(facts);
+        return callGeminiText(prompt, "weekly progress narrative");
     }
 
     private EnrichResponse callGemini(String prompt, String label) {
@@ -110,6 +122,28 @@ public class GeminiService {
         }
     }
 
+    private String callGeminiText(String prompt, String label) {
+        if (apiKey == null || apiKey.isBlank() || apiKey.equals("YOUR_GEMINI_API_KEY_HERE")) {
+            throw new IllegalStateException("Gemini API key is not configured.");
+        }
+        try {
+            String requestBody = """
+                    {"contents":[{"parts":[{"text":%s}]}],"generationConfig":{"temperature":0.2,"maxOutputTokens":256}}
+                    """.formatted(objectMapper.valueToTree(prompt).toString());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    geminiUrl + "?key=" + apiKey, HttpMethod.POST,
+                    new HttpEntity<>(requestBody, headers), String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+            return root.path("candidates").get(0).path("content").path("parts").get(0).path("text")
+                    .asText().replaceAll("(?s)```", "").trim();
+        } catch (Exception e) {
+            log.warn("Gemini narrative generation failed: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate weekly narrative");
+        }
+    }
+
     private EnrichResponse parseGeminiResponse(String body) throws Exception {
         JsonNode root = objectMapper.readTree(body);
         String text = root
@@ -132,12 +166,16 @@ public class GeminiService {
 
         String partOfSpeech = parsed.path("partOfSpeech").isMissingNode() ? null : parsed.path("partOfSpeech").asText(null);
         String notes = parsed.path("notes").isMissingNode() ? null : parsed.path("notes").asText(null);
+        String difficultyTier = parsed.path("difficultyTier").asText(null);
+        if (difficultyTier != null) difficultyTier = difficultyTier.trim().toUpperCase().replace(' ', '_');
+        if (!Set.of("EASY", "MEDIUM", "HARD", "SUPER_HARD").contains(difficultyTier)) difficultyTier = null;
 
         return EnrichResponse.builder()
                 .definition(definition)
                 .examples(examples)
                 .notes(notes)
                 .partOfSpeech(partOfSpeech)
+                .difficultyTier(difficultyTier)
                 .source("gemini")
                 .build();
     }

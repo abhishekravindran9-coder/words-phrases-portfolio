@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -21,9 +22,15 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     List<Review> findByWordOrderByCreatedAtDesc(Word word);
 
+    List<Review> findByUserAndWordOrderByReviewDateDesc(User user, Word word);
+
     long countByUser(User user);
 
     long countByUserAndQualityGreaterThanEqual(User user, Integer quality);
+
+    java.util.Optional<Review> findFirstByUserOrderByReviewDateAsc(User user);
+
+    List<Review> findByUserAndReviewedAtBetweenOrderByReviewedAtAsc(User user, Instant from, Instant to);
 
     /** Count reviews per day within a date range – used for progress charts. */
     @Query("SELECT r.reviewDate, COUNT(r) FROM Review r WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to GROUP BY r.reviewDate ORDER BY r.reviewDate ASC")
@@ -65,6 +72,18 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
                                               @Param("from") LocalDate from,
                                               @Param("to") LocalDate to,
                                               @Param("minimumReviews") long minimumReviews);
+
+    @Query("SELECT COUNT(r), SUM(CASE WHEN r.quality >= 3 THEN 1 ELSE 0 END) FROM Review r WHERE r.user = :user AND r.intervalBeforeDays >= 21 AND r.reviewDate BETWEEN :from AND :to")
+    Object[] summarizeMatureRetention(@Param("user") User user, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT r.questionFormat, COUNT(r), SUM(CASE WHEN r.quality >= 3 THEN 1 ELSE 0 END) FROM Review r WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to AND r.questionFormat IS NOT NULL GROUP BY r.questionFormat")
+    List<Object[]> summarizeByFormat(@Param("user") User user, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT r.word.entryType, COUNT(r), SUM(CASE WHEN r.quality >= 3 THEN 1 ELSE 0 END) FROM Review r WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to GROUP BY r.word.entryType")
+    List<Object[]> summarizeByEntryType(@Param("user") User user, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("SELECT r.reviewDate, COUNT(r) FROM Review r WHERE r.user = :user AND r.intervalBeforeDays < 21 AND r.intervalAfterDays >= 21 AND r.reviewDate BETWEEN :from AND :to GROUP BY r.reviewDate ORDER BY r.reviewDate")
+    List<Object[]> countGraduationsByDate(@Param("user") User user, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /** Maximum reviews in a single day (all-time). */
     @Query("SELECT MAX(cnt) FROM (SELECT COUNT(r) AS cnt FROM Review r WHERE r.user = :user GROUP BY r.reviewDate) sub")

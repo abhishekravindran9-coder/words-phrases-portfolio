@@ -1,16 +1,16 @@
 import React from 'react';
 
 const VARIANTS = {
-  primary:   'bg-primary-600 hover:bg-primary-700 text-white shadow-sm focus:ring-primary-500',
-  secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm focus:ring-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600',
-  danger:    'bg-red-600 hover:bg-red-700 text-white shadow-sm focus:ring-red-500',
-  ghost:     'bg-transparent hover:bg-gray-100 text-gray-600 focus:ring-gray-400 dark:hover:bg-gray-700 dark:text-gray-400',
+  primary:   'bg-[var(--mv-moss)] hover:bg-[var(--mv-moss-dark)] text-white shadow-sm focus:ring-[var(--mv-moss)]',
+  secondary: 'bg-[var(--mv-paper)] hover:bg-[var(--mv-paper-deep)] text-[var(--mv-ink)] border border-[var(--mv-line)] shadow-sm focus:ring-[var(--mv-moss)]',
+  danger:    'bg-[var(--mv-terracotta)] hover:bg-[#984a36] text-white shadow-sm focus:ring-[var(--mv-terracotta)]',
+  ghost:     'bg-transparent hover:bg-[var(--mv-paper-deep)] text-[var(--mv-ink-soft)] focus:ring-[var(--mv-moss)]',
 };
 
 const SIZES = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  sm: 'min-h-11 px-3 text-sm',
+  md: 'min-h-11 px-4 text-sm',
+  lg: 'min-h-12 px-6 text-base',
 };
 
 /**
@@ -30,7 +30,7 @@ export default function Button({
       {...props}
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center gap-2 font-medium rounded-lg
+        inline-flex items-center justify-center gap-2 font-semibold rounded-[var(--mv-radius-sm)]
         transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
         ${VARIANTS[variant]} ${SIZES[size]} ${className}

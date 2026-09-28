@@ -1,9 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   XMarkIcon, CheckBadgeIcon, CalendarDaysIcon,
   ArrowPathIcon, BoltIcon, PencilIcon, SpeakerWaveIcon, PauseIcon, StopIcon,
 } from '@heroicons/react/24/outline';
 import { useSpeech } from '../../hooks/useSpeech';
+import { reviewService } from '../../services/reviewService';
+
+function cleanNotes(value) {
+  return (value || '').replace(/\*\*/g, '').replace(/__/g, '').replace(/\*/g, '•');
+}
 
 /**
  * Full-detail slide-over for a single word / phrase.
@@ -11,6 +17,7 @@ import { useSpeech } from '../../hooks/useSpeech';
  */
 export default function WordDetailModal({ word, onClose, onEdit }) {
   const { speak, stop, pause, resume, speaking, paused, supported: speechSupported } = useSpeech();
+  const [history, setHistory] = useState([]);
 
   // Build the read-aloud text: word + definition + first example sentence
   const readText = [
@@ -36,6 +43,10 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
       window.speechSynthesis.cancel();
     };
   }, []);
+
+  useEffect(() => {
+    reviewService.getHistory(word.id).then(setHistory).catch(() => setHistory([]));
+  }, [word.id]);
 
   if (!word) return null;
 
@@ -84,9 +95,10 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
                 </span>
               )}
             </div>
-            <h2 className="mt-1 text-2xl font-extrabold text-gray-900 dark:text-gray-100 break-words leading-tight">
+            <h2 className="mv-display mt-1 text-3xl text-[var(--mv-ink)] break-words leading-tight">
               {word.word}
             </h2>
+            {(word.pronunciation || word.partOfSpeech) && <p className="mt-1 text-sm italic text-[var(--mv-ink-soft)]">{word.pronunciation}{word.pronunciation && word.partOfSpeech ? ' · ' : ''}{word.partOfSpeech}</p>}
             {word.categoryName && (
               <span
                 className="mt-1 inline-block text-xs px-2.5 py-0.5 rounded-full font-semibold"
@@ -172,7 +184,7 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
                 Definition
               </h3>
-              <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-sm whitespace-pre-wrap">
+              <p className="text-[var(--mv-ink)] leading-relaxed text-sm whitespace-pre-wrap">
                 {word.definition}
               </p>
             </section>
@@ -201,14 +213,18 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
             </section>
           )}
 
+          {word.mnemonic && <section className="rounded-[var(--mv-radius-md)] border border-[var(--mv-gold)]/30 bg-amber-50 p-4 dark:bg-amber-900/20"><h3 className="mv-eyebrow mb-2">Memory hook</h3><p className="text-sm leading-relaxed text-[var(--mv-ink)]">{word.mnemonic}</p></section>}
+
+          {word.usageNote && <section><h3 className="mv-eyebrow mb-2">Usage note</h3><p className="text-sm leading-relaxed text-[var(--mv-ink-soft)]">{word.usageNote}</p></section>}
+
           {/* Notes */}
           {word.notes && (
             <section>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
                 Notes
               </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl px-4 py-3 leading-relaxed whitespace-pre-wrap">
-                {word.notes}
+              <p className="text-sm text-[var(--mv-ink-soft)] bg-[var(--mv-paper-deep)] border border-[var(--mv-line)] rounded-xl px-4 py-3 leading-relaxed whitespace-pre-wrap">
+                {cleanNotes(word.notes)}
               </p>
             </section>
           )}
@@ -226,12 +242,12 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
               />
               <StatPill
                 icon={<ArrowPathIcon className="h-4 w-4" />}
-                label="Interval"
-                value={`${word.intervalDays}d`}
+                label="Memory strength"
+                value={word.mastered ? 'Mastered' : `${Math.round(Number(word.easeFactor || 2.5) * 40)}%`}
               />
               <StatPill
                 icon={<BoltIcon className="h-4 w-4" />}
-                label="Reps"
+                label="Times recalled"
                 value={word.repetitions}
               />
               <StatPill
@@ -245,6 +261,10 @@ export default function WordDetailModal({ word, onClose, onEdit }) {
               />
             </div>
           </section>
+
+          {history.length > 0 && <section><h3 className="mv-eyebrow mb-3">Review history</h3><div className="space-y-2">{history.slice(0, 8).map((review) => <div key={review.reviewId} className="flex items-center justify-between border-l-2 border-[var(--mv-moss)] pl-3 text-xs"><span className="text-[var(--mv-ink-soft)]">{review.reviewDate}</span><span className={review.quality >= 3 ? 'font-bold text-[var(--mv-moss)]' : 'font-bold text-[var(--mv-terracotta)]'}>{review.quality >= 3 ? 'Recalled' : 'Needs another pass'}</span></div>)}</div></section>}
+
+          <Link to={`/practice?wordId=${word.id}`} onClick={onClose} className="flex min-h-11 items-center justify-center rounded-[var(--mv-radius-sm)] bg-[var(--mv-moss)] px-4 text-sm font-bold text-white hover:bg-[var(--mv-moss-dark)]">Practice this word</Link>
 
           {/* Added date */}
           {word.createdAt && (

@@ -10,4 +10,9 @@ export const reviewService = {
     const res = await api.post('/reviews', payload);
     return res.data.data;
   },
+
+  async getHistory(wordId) {
+    const response = await api.get(`/reviews/word/${wordId}`);
+    return response.data.data;
+  },
 };

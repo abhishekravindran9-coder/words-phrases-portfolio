@@ -25,6 +25,19 @@ public class WordResponse {
     private String imageUrl;
     private String audioUrl;
     private String notes;
+    private String difficultyTier;
+    private Integer lapseCount;
+    private String pronunciation;
+    private String partOfSpeech;
+    private String etymology;
+    private String mnemonic;
+    private String usageNote;
+    private String synonyms;
+    private String antonyms;
+    private String sourceContext;
+    private String userExample;
+    private String userMnemonic;
+    private String aiEnrichmentStatus;
 
     // Category info
     private Long categoryId;

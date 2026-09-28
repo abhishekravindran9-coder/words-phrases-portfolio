@@ -82,7 +82,7 @@ function MoveToFolderMenu({ entry, allCategories, onMoveToFolder }) {
  * Clicking the card body opens the full entry viewer.
  * Edit/delete/move-to-folder buttons appear on hover.
  */
-export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allCategories = [], onMoveToFolder, isMoving = false }) {
+export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allCategories = [], onMoveToFolder, isMoving = false, selected = false, onSelect }) {
   const mood       = MOOD_META[entry.mood];
   const vocabCount = entry.usedWords?.length ?? 0;
   const words      = wc(entry.content);
@@ -90,9 +90,13 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-900/5 dark:border-gray-700 dark:bg-gray-800
+      className={`group relative overflow-hidden rounded-2xl border bg-[var(--mv-paper)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${selected ? 'border-[var(--mv-moss)] ring-2 ring-[var(--mv-moss)]/20' : 'border-[var(--mv-line)]'}
                  ${isMoving ? 'opacity-75 pointer-events-none' : ''}`}
-      onClick={() => !isMoving && onView?.(entry)}
+      onClick={() => !isMoving && onSelect ? onSelect(!selected) : onView?.(entry)}
+      onKeyDown={(event) => { if (!isMoving && onSelect && (event.key === ' ' || event.key === 'Enter')) { event.preventDefault(); onSelect(!selected); } }}
+      role={onSelect ? 'checkbox' : undefined}
+      aria-checked={onSelect ? selected : undefined}
+      tabIndex={onSelect ? 0 : undefined}
     >
       {/* Moving overlay */}
       {isMoving && (
@@ -113,6 +117,7 @@ export default function JournalEntryCard({ entry, onEdit, onDelete, onView, allC
         {/* Top row: mood badge + date + actions */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
+            {onSelect && <label className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--mv-line)] bg-[var(--mv-paper)] hover:border-[var(--mv-moss)]" onClick={(event) => event.stopPropagation()} title={selected ? 'Deselect entry' : 'Select entry'}><input type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${entry.title}`} className="h-4 w-4 accent-[var(--mv-moss)]" /></label>}
             {mood ? (
               <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${mood.badge}`}>
                 {mood.emoji} {mood.label}

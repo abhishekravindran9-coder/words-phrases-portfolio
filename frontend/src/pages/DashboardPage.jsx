@@ -8,6 +8,7 @@ import WeakestWords from '../components/dashboard/WeakestWords';
 import DailyHighlight from '../components/dashboard/DailyHighlight';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Button from '../components/common/Button';
+import PageHeader from '../components/common/PageHeader';
 import {
   ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, BookOpenIcon,
   CheckCircleIcon, ChevronRightIcon, ClockIcon,
@@ -125,19 +126,12 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 pb-8 sm:space-y-7">
-      <header className="flex flex-col gap-4 px-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary-600 dark:text-primary-400">Your learning studio</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-            {greeting}, {user?.displayName || user?.username}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">A clear view of what to practise and how your recall is moving.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {dueToday > 0 && <Link to="/practice"><Button className="min-h-11"><CheckCircleIcon className="h-4 w-4" />Practice {dueToday} due</Button></Link>}
-          <Link to="/practice"><Button variant="secondary" className="min-h-11"><SparklesIcon className="h-4 w-4" />Practice</Button></Link>
-        </div>
-      </header>
+      <PageHeader
+        space="Learn"
+        title={`Good ${greeting.replace('Good ', '').toLowerCase()}, ${user?.displayName || user?.username}`}
+        description="A calm place to see what deserves your attention and keep a few beautiful words close."
+        action={<div className="flex flex-wrap gap-2">{dueToday > 0 && <Link to="/practice"><Button className="min-h-11 !bg-[var(--mv-moss)] hover:!bg-[var(--mv-moss-dark)]"><CheckCircleIcon className="h-4 w-4" />Practice {dueToday} due</Button></Link>}<Link to="/practice"><Button variant="secondary" className="min-h-11"><SparklesIcon className="h-4 w-4" />Practice</Button></Link></div>}
+      />
 
       {totalWords === 0 ? (
         <section className="rounded-3xl border border-primary-100 bg-gradient-to-br from-primary-50 via-white to-indigo-50 p-7 text-center dark:border-primary-900 dark:from-gray-800 dark:via-gray-800 dark:to-indigo-950/40 sm:p-10">

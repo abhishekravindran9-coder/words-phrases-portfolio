@@ -30,8 +30,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
       {/* Panel */}
       <div
-        className={`relative z-10 w-full ${SIZE_MAP[size]} bg-white rounded-2xl shadow-2xl animate-slide-up flex flex-col max-h-[90vh]
-                    dark:bg-gray-800`}
+        className={`relative z-10 w-full ${SIZE_MAP[size]} bg-[var(--mv-paper)] rounded-[var(--mv-radius-lg)] shadow-2xl animate-slide-up flex flex-col max-h-[90vh]`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

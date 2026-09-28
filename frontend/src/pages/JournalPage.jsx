@@ -7,6 +7,7 @@ import JournalEntryViewer from '../components/journal/JournalEntryViewer';
 import PdfExportPanel from '../components/common/PdfExportPanel';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
+import PageHeader from '../components/common/PageHeader';
 import toast from 'react-hot-toast';
 import {
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, BookOpenIcon,
@@ -78,6 +79,7 @@ export default function JournalPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [movingEntryId,  setMovingEntryId]  = useState(null); // id of card being moved to folder
   const [showFilters,    setShowFilters]    = useState(false);
+  const [selectedIds,    setSelectedIds]    = useState([]);
 
   // Detect which vocab words appear in content (whole-word, case-insensitive)
   const detectWordsInContent = useCallback((content) => {
@@ -257,6 +259,9 @@ export default function JournalPage() {
         setTotalEntries((n) => n + 1);
         toast.success('Entry created!');
       }
+      // Reconcile the optimistic update with the server so pagination, sorting,
+      // linked words, and generated timestamps are immediately authoritative.
+      await fetchEntries();
       setModalOpen(false);
     } catch {
       toast.error('Failed to save entry');
@@ -304,6 +309,14 @@ export default function JournalPage() {
       ),
       { duration: 5000, id: `delete-${id}` },
     );
+  };
+
+  const handleBulkDelete = () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected journal ${selectedIds.length === 1 ? 'entry' : 'entries'}?`)) return;
+    const ids = [...selectedIds];
+    setSelectedIds([]);
+    ids.forEach((id) => handleDelete(id));
   };
   // Move an entry to a folder — optimistic update so the card moves instantly, no page reload
   const moveToFolder = useCallback(async (entry, category) => {
@@ -355,6 +368,21 @@ export default function JournalPage() {
       toast.success(`Downloaded ${entries.length} journal entries`);
     } catch {
       toast.error('Could not download your journal PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportSelected = async () => {
+    const entries = allEntries.filter((entry) => selectedIds.includes(entry.id));
+    if (!entries.length) return;
+    setExporting(true);
+    try {
+      const pdfMake = await preparePdfExport();
+      await downloadJournalPdf(entries, pdfMake, exportPageSize);
+      toast.success(`Downloaded ${entries.length} selected journal entries`);
+    } catch {
+      toast.error('Could not download selected journal entries');
     } finally {
       setExporting(false);
     }
@@ -458,19 +486,7 @@ export default function JournalPage() {
     <div className="max-w-4xl mx-auto space-y-6">
 
       {/* ── Page header ──────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 px-4 sm:px-5">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
-            Journal
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Reflect and practise vocabulary in context
-          </p>
-        </div>
-        <Button onClick={openCreate} className="min-h-[44px] flex-shrink-0">
-          <PlusIcon className="h-4 w-4" /> New Entry
-        </Button>
-      </div>
+      <PageHeader space="Write" title="Journal" description="Reflect, write freely, and let vocabulary become part of your own story." action={<Button onClick={openCreate} className="min-h-11 !bg-[var(--mv-plum)] hover:!bg-[#5d4057]"><PlusIcon className="h-4 w-4" /> New entry</Button>} />
 
       <PdfExportPanel
         collection="journal"
@@ -630,6 +646,8 @@ export default function JournalPage() {
         </div>
       )}
 
+      {!loading && filteredEntries.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] bg-[var(--mv-paper-deep)] px-4 py-3"><label className="flex min-h-10 items-center gap-2 text-xs font-bold text-[var(--mv-ink-soft)]"><input type="checkbox" checked={filteredEntries.length > 0 && filteredEntries.every((entry) => selectedIds.includes(entry.id))} onChange={(event) => setSelectedIds(event.target.checked ? filteredEntries.map((entry) => entry.id) : [])} className="h-4 w-4 accent-[var(--mv-moss)]" /> Select visible entries</label>{selectedIds.length > 0 ? <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-bold text-[var(--mv-ink)]">{selectedIds.length} selected</span><button type="button" onClick={handleExportSelected} className="min-h-10 rounded-lg border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper)]">Export selected</button><button type="button" onClick={handleBulkDelete} className="min-h-10 rounded-lg border border-[var(--mv-terracotta)]/40 px-3 text-xs font-bold text-[var(--mv-terracotta)] hover:bg-[var(--mv-paper)]">Delete selected</button><button type="button" onClick={() => setSelectedIds([])} className="min-h-10 px-2 text-xs font-bold text-[var(--mv-ink-soft)]">Clear</button></div> : <span className="text-xs text-[var(--mv-ink-soft)]">Or click an entry to select it</span>}</div>}
+
       {/* ── Collapsible filter panel ─────────────────────────── */}
       {!loading && allEntries.length > 0 && (
         <div id="journal-filter-panel" hidden={!showFilters} className="space-y-4 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:px-5">
@@ -741,6 +759,8 @@ export default function JournalPage() {
                     allCategories={allCategories}
                     onMoveToFolder={moveToFolder}
                     isMoving={movingEntryId === e.id}
+                    selected={selectedIds.includes(e.id)}
+                    onSelect={(checked) => setSelectedIds((ids) => checked ? [...ids, e.id] : ids.filter((id) => id !== e.id))}
                   />
                 </div>
               ))}
@@ -784,7 +804,7 @@ export default function JournalPage() {
                             )}
                           </div>
                           <div className="flex-1 pb-4">
-                            <JournalEntryCard entry={e} onEdit={openEdit} onDelete={handleDelete} onView={setViewEntry} allCategories={allCategories} onMoveToFolder={moveToFolder} isMoving={movingEntryId === e.id} />
+                            <JournalEntryCard entry={e} onEdit={openEdit} onDelete={handleDelete} onView={setViewEntry} allCategories={allCategories} onMoveToFolder={moveToFolder} isMoving={movingEntryId === e.id} selected={selectedIds.includes(e.id)} onSelect={(checked) => setSelectedIds((ids) => checked ? [...ids, e.id] : ids.filter((id) => id !== e.id))} />
                           </div>
                         </div>
                       ))}
@@ -940,6 +960,8 @@ export default function JournalPage() {
                                         allCategories={allCategories}
                                         onMoveToFolder={moveToFolder}
                                         isMoving={movingEntryId === e.id}
+                                        selected={selectedIds.includes(e.id)}
+                                        onSelect={(checked) => setSelectedIds((ids) => checked ? [...ids, e.id] : ids.filter((id) => id !== e.id))}
                                       />
                                     </div>
                                   )}

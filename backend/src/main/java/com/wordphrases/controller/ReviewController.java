@@ -28,6 +28,11 @@ public class ReviewController extends BaseController {
         return ResponseEntity.ok(ApiResponse.ok(reviewService.getDueWords(getCurrentUserId())));
     }
 
+    @GetMapping("/word/{wordId}")
+    public ResponseEntity<ApiResponse<List<ReviewResponse>>> getHistory(@PathVariable Long wordId) {
+        return ResponseEntity.ok(ApiResponse.ok(reviewService.getHistory(getCurrentUserId(), wordId)));
+    }
+
     /** Submits a review result and returns the updated SM-2 schedule for that word. */
     @PostMapping
     public ResponseEntity<ApiResponse<ReviewResponse>> submitReview(@Valid @RequestBody ReviewResultRequest request) {

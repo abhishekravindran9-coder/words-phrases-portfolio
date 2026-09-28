@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -34,6 +35,7 @@ public class PracticeService {
     @Transactional(readOnly = true)
     public PracticeOverviewResponse getOverview(Long userId) {
         User user = userService.getUserById(userId);
+        LocalDate today = LocalDate.now(resolveZone(user));
         long totalReviews = reviewRepository.countByUser(user);
         long successfulReviews = reviewRepository.countByUserAndQualityGreaterThanEqual(user, 3);
         int recallRate = totalReviews > 0
@@ -42,38 +44,45 @@ public class PracticeService {
         return PracticeOverviewResponse.builder()
                 .totalCards(wordRepository.countByUser(user))
                 .masteredCards(wordRepository.countByUserAndMastered(user, true))
-                .dueCards(wordRepository.countDueForReview(user, LocalDate.now()))
+                .dueCards(wordRepository.countDueForReview(user, today))
                 .totalReviews(totalReviews)
                 .successfulReviews(successfulReviews)
                 .recallRate(recallRate)
-                .currentStreakDays(computeStreak(reviewRepository.findDistinctReviewDatesByUser(user)))
+                .currentStreakDays(LearningPolicy.currentStreak(reviewRepository.findDistinctReviewDatesByUser(user), today))
                 .build();
     }
 
     @Transactional(readOnly = true)
     public PracticeQueueResponse getQueue(Long userId, String requestedMode, int requestedSize) {
         User user = userService.getUserById(userId);
+        LocalDate today = LocalDate.now(resolveZone(user));
         String mode = requestedMode == null ? "DUE" : requestedMode.trim().toUpperCase();
-        if (!mode.equals("DUE") && !mode.equals("CUSTOM")) {
-            throw new IllegalArgumentException("Practice mode must be DUE or CUSTOM");
+        if (!mode.equals("DUE") && !mode.equals("CUSTOM") && !mode.equals("LEECHES")) {
+            throw new IllegalArgumentException("Practice mode must be DUE, CUSTOM, or LEECHES");
         }
 
         int size = Math.max(1, Math.min(requestedSize, MAX_CUSTOM_SIZE));
         List<Word> selected;
         int availableCount;
         if (mode.equals("DUE")) {
-            List<Word> due = wordRepository.findDueForReview(user, LocalDate.now());
+            List<Word> due = wordRepository.findDueForReview(user, today);
             availableCount = due.size();
             selected = due;
-        } else {
+        } else if (mode.equals("CUSTOM")) {
             availableCount = Math.toIntExact(Math.min(
                     wordRepository.countByUser(user), Integer.MAX_VALUE));
             selected = wordRepository.findRandomPracticeWords(userId, size);
+        } else {
+            List<Object[]> leechRows = wordRepository.findLeeches(
+                user, LocalDate.now(resolveZone(user)).minusDays(89), LocalDate.now(resolveZone(user)),
+                2, 2.5, PageRequest.of(0, size));
+            selected = leechRows.stream().map(row -> (Word) row[0]).toList();
+            availableCount = selected.size();
         }
 
         return PracticeQueueResponse.builder()
                 .mode(mode)
-                .requestedSize(mode.equals("DUE") ? selected.size() : size)
+                .requestedSize(mode.equals("DUE") ? selected.size() : Math.min(size, availableCount))
                 .availableCount(availableCount)
                 .words(selected.stream().map(this::toPracticeWord).toList())
                 .build();
@@ -108,6 +117,8 @@ public class PracticeService {
         review.setWordId(answer.getWordId());
         review.setQuality(quality);
         review.setTimeTakenSeconds(answer.getTimeTakenSeconds());
+        review.setQuestionFormat(format);
+        review.setTimezoneId(answer.getTimezoneId());
         return reviewService.submitReview(userId, review);
     }
 
@@ -121,6 +132,8 @@ public class PracticeService {
                 .imageUrl(word.getImageUrl())
                 .audioUrl(word.getAudioUrl())
                 .notes(word.getNotes())
+                .difficultyTier(word.getDifficultyTier())
+                .lapseCount(word.getLapseCount())
                 .categoryId(word.getCategory() != null ? word.getCategory().getId() : null)
                 .categoryName(word.getCategory() != null ? word.getCategory().getName() : null)
                 .categoryColor(word.getCategory() != null ? word.getCategory().getColor() : null)
@@ -134,18 +147,7 @@ public class PracticeService {
                 .build();
     }
 
-    private int computeStreak(List<LocalDate> sortedDates) {
-        if (sortedDates.isEmpty()) return 0;
-        LocalDate cursor = LocalDate.now();
-        int streak = 0;
-        for (LocalDate date : sortedDates) {
-            if (date.equals(cursor) || date.equals(cursor.minusDays(1))) {
-                streak++;
-                cursor = date;
-            } else {
-                break;
-            }
-        }
-        return streak;
+    private ZoneId resolveZone(User user) {
+        return LearningPolicy.zone(user.getTimezone());
     }
 }

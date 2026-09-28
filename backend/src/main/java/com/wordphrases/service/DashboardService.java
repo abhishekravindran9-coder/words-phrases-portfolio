@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(Long userId) {
         User user = userService.getUserById(userId);
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(LearningPolicy.zone(user.getTimezone()));
         LocalDate weekStart = today.minusDays(6);
         LocalDate previousWeekStart = today.minusDays(13);
         LocalDate previousWeekEnd = today.minusDays(7);
@@ -59,7 +60,7 @@ public class DashboardService {
         double masteryRate = totalWords > 0 ? (double) masteredWords / totalWords * 100 : 0.0;
 
         List<LocalDate> reviewDates = reviewRepository.findDistinctReviewDatesByUser(user);
-        int streak = computeStreak(reviewDates);
+        int streak = LearningPolicy.currentStreak(reviewDates, today);
         int bestStreak = computeBestStreak(reviewDates);
 
         // Upcoming reviews (first 5)
@@ -142,21 +143,6 @@ public class DashboardService {
                 .wordsToNextMasteryMilestone(Math.max(0, nextMilestone - masteredWords))
                 .reviewActivity(activity)
                 .build();
-    }
-
-    private int computeStreak(List<LocalDate> sortedDates) {
-        if (sortedDates.isEmpty()) return 0;
-        LocalDate cursor = LocalDate.now();
-        int streak = 0;
-        for (LocalDate date : sortedDates) {
-            if (date.equals(cursor) || date.equals(cursor.minusDays(1))) {
-                streak++;
-                cursor = date;
-            } else {
-                break;
-            }
-        }
-        return streak;
     }
 
     private int computeBestStreak(List<LocalDate> datesDescending) {

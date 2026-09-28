@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,7 +21,8 @@ import java.util.List;
     name = "words",
     indexes = {
         @Index(name = "idx_words_user_id", columnList = "user_id"),
-        @Index(name = "idx_words_next_review", columnList = "next_review_date")
+        @Index(name = "idx_words_next_review", columnList = "next_review_date"),
+        @Index(name = "idx_words_user_difficulty", columnList = "user_id, difficulty_tier")
     }
 )
 @Getter
@@ -28,6 +30,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLRestriction("deleted_at IS NULL")
 public class Word {
 
     @Id
@@ -66,6 +69,51 @@ public class Word {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** Difficulty assigned at creation/enrichment; null means not rated. */
+    @Column(name = "difficulty_tier", length = 20)
+    private String difficultyTier;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    private String pronunciation;
+
+    @Column(name = "part_of_speech", length = 80)
+    private String partOfSpeech;
+
+    @Column(columnDefinition = "TEXT")
+    private String etymology;
+
+    @Column(columnDefinition = "TEXT")
+    private String mnemonic;
+
+    @Column(name = "usage_note", columnDefinition = "TEXT")
+    private String usageNote;
+
+    @Column(columnDefinition = "TEXT")
+    private String synonyms;
+
+    @Column(columnDefinition = "TEXT")
+    private String antonyms;
+
+    @Column(name = "source_context", columnDefinition = "TEXT")
+    private String sourceContext;
+
+    @Column(name = "user_example", columnDefinition = "TEXT")
+    private String userExample;
+
+    @Column(name = "user_mnemonic", columnDefinition = "TEXT")
+    private String userMnemonic;
+
+    @Column(name = "ai_enrichment_status", length = 32)
+    private String aiEnrichmentStatus;
+
+    @Column(name = "ai_enrichment_version", length = 32)
+    private String aiEnrichmentVersion;
+
     // ── SM-2 Spaced Repetition Fields ──────────────────────────────────
 
     /** Easiness factor (≥1.3). Default 2.5. Controls how quickly intervals grow. */
@@ -91,6 +139,11 @@ public class Word {
     @Column(nullable = false)
     @Builder.Default
     private Boolean mastered = false;
+
+    /** Count of failed recalls observed by the scheduler. */
+    @Column(name = "lapse_count", nullable = false)
+    @Builder.Default
+    private Integer lapseCount = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

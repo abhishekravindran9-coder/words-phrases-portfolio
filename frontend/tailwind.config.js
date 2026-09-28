@@ -5,6 +5,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        vault: {
+          ink: '#2d2925',
+          paper: '#fbfaf7',
+          line: '#e4ded4',
+          moss: '#28665b',
+          terracotta: '#b65d43',
+          gold: '#b58437',
+          sky: '#467b8e',
+          plum: '#74556d',
+        },
         primary: {
           50:  '#eef2ff',
           100: '#e0e7ff',
@@ -19,7 +29,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Avenir Next', 'Helvetica Neue', 'sans-serif'],
+        display: ['Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Georgia', 'serif'],
       },
       animation: {
         'flip-in':         'flipIn 0.4s ease-out',

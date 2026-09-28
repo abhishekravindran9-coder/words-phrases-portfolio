@@ -25,4 +25,11 @@ public class ReviewResultRequest {
 
     /** Time spent reviewing this card, in seconds. */
     private Long timeTakenSeconds;
+
+    /** Practice prompt format; absent legacy clients are recorded as RECALL. */
+    private String questionFormat;
+
+    /** IANA timezone reported by the client for local day/time analytics. */
+    private String timezoneId;
+
 }

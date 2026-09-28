@@ -32,8 +32,9 @@ public class PracticeController extends BaseController {
     public ResponseEntity<ApiResponse<PracticeQueueResponse>> queue(
             @RequestParam(defaultValue = "DUE") String mode,
             @RequestParam(defaultValue = "10") int size) {
-        if (!"DUE".equalsIgnoreCase(mode) && !"CUSTOM".equalsIgnoreCase(mode)) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Mode must be DUE or CUSTOM"));
+        if (!"DUE".equalsIgnoreCase(mode) && !"CUSTOM".equalsIgnoreCase(mode)
+                && !"LEECHES".equalsIgnoreCase(mode)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Mode must be DUE, CUSTOM, or LEECHES"));
         }
         return ResponseEntity.ok(ApiResponse.ok(practiceService.getQueue(getCurrentUserId(), mode, size)));
     }

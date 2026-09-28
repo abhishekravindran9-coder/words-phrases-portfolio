@@ -13,11 +13,11 @@ export default function Input({
   ...props
 }) {
   const baseClass = `
-    block w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900
-    placeholder-gray-400 shadow-sm transition-colors
-    focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+    block w-full min-h-11 rounded-[var(--mv-radius-sm)] border px-3 py-2.5 text-sm text-[var(--mv-ink)]
+    placeholder:text-[var(--mv-ink-soft)] bg-[var(--mv-paper)] transition-colors
+    focus:outline-none focus:ring-2 focus:ring-[var(--mv-moss)] focus:border-transparent
     disabled:bg-gray-50 disabled:cursor-not-allowed
-    ${error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'}
+    ${error ? 'border-[var(--mv-terracotta)] focus:ring-[var(--mv-terracotta)]' : 'border-[var(--mv-line)]'}
     ${className}
   `;
 

@@ -13,4 +13,5 @@ public class WordStatsResponse {
     private long mastered;
     private long words;
     private long phrases;
+    private long dueToday;
 }

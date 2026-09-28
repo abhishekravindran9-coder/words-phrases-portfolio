@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -6,18 +6,19 @@ import { ThemeProvider } from './context/ThemeContext';
 import { FontSizeProvider } from './context/FontSizeContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
+import LoadingSpinner from './components/common/LoadingSpinner';
 
 // Pages
 import LoginPage      from './pages/LoginPage';
 import RegisterPage   from './pages/RegisterPage';
-import DashboardPage  from './pages/DashboardPage';
-import WordsPage             from './pages/WordsPage';
-import ProgressPage          from './pages/ProgressPage';
-import JournalPage           from './pages/JournalPage';
-import ProfilePage           from './pages/ProfilePage';
-import PracticePage          from './pages/PracticePage';
-import PropertyTrackerPage   from './pages/PropertyTrackerPage';
-import PropertyDetailPage    from './pages/PropertyDetailPage';
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const WordsPage = lazy(() => import('./pages/WordsPage'));
+const ProgressPage = lazy(() => import('./pages/ProgressPage'));
+const JournalPage = lazy(() => import('./pages/JournalPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const PracticePage = lazy(() => import('./pages/PracticePage'));
+const PropertyTrackerPage = lazy(() => import('./pages/PropertyTrackerPage'));
+const PropertyDetailPage = lazy(() => import('./pages/PropertyDetailPage'));
 
 const canSignUp = () => false;
 
@@ -34,6 +35,7 @@ export default function App() {
             style: { borderRadius: '10px', fontFamily: 'Inter, sans-serif' },
           }}
         />
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[var(--mv-paper)]"><LoadingSpinner size="lg" /></div>}>
         <Routes>
           {/* Public */}
           <Route path="/login"    element={<LoginPage />} />
@@ -59,6 +61,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

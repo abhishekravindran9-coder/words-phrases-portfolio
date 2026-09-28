@@ -11,6 +11,7 @@ import com.wordphrases.repository.CategoryRepository;
 import com.wordphrases.repository.ReviewRepository;
 import com.wordphrases.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,7 @@ public class WordService {
                 .mastered(wordRepository.countByUserAndMastered(user, true))
                 .words(wordRepository.countByUserAndEntryType(user, "WORD"))
                 .phrases(wordRepository.countByUserAndEntryType(user, "PHRASE"))
+                .dueToday(wordRepository.countDueForReview(user, LocalDate.now(LearningPolicy.zone(user.getTimezone()))))
                 .build();
     }
 
@@ -65,7 +67,17 @@ public class WordService {
         return toWordResponse(word);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<WordResponse> findDuplicates(Long userId, String word, String entryType, Long excludeId) {
+        if (word == null || word.isBlank()) return java.util.List.of();
+        User user = userService.getUserById(userId);
+        String type = entryType == null || entryType.isBlank() ? null : entryType.toUpperCase();
+        return wordRepository.findDuplicates(user, word.trim(), type, excludeId).stream()
+                .map(this::toWordResponse).toList();
+    }
+
     @Transactional
+    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
     public WordResponse createWord(Long userId, WordRequest request) {
         User user = userService.getUserById(userId);
         Category category = resolveCategory(request.getCategoryId(), user);
@@ -80,6 +92,17 @@ public class WordService {
                 .imageUrl(request.getImageUrl())
                 .audioUrl(request.getAudioUrl())
                 .notes(request.getNotes())
+                .difficultyTier(normalizeDifficulty(request.getDifficultyTier()))
+                .pronunciation(request.getPronunciation())
+                .partOfSpeech(request.getPartOfSpeech())
+                .etymology(request.getEtymology())
+                .mnemonic(request.getMnemonic())
+                .usageNote(request.getUsageNote())
+                .synonyms(request.getSynonyms())
+                .antonyms(request.getAntonyms())
+                .sourceContext(request.getSourceContext())
+                .userExample(request.getUserExample())
+                .userMnemonic(request.getUserMnemonic())
                 .nextReviewDate(LocalDate.now())
                 .build();
 
@@ -87,6 +110,7 @@ public class WordService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
     public WordResponse updateWord(Long userId, Long wordId, WordRequest request) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(wordId, user)
@@ -99,17 +123,37 @@ public class WordService {
         if (request.getImageUrl() != null) word.setImageUrl(request.getImageUrl());
         if (request.getAudioUrl() != null) word.setAudioUrl(request.getAudioUrl());
         if (request.getNotes() != null) word.setNotes(request.getNotes());
+        if (request.getDifficultyTier() != null) word.setDifficultyTier(normalizeDifficulty(request.getDifficultyTier()));
+        word.setPronunciation(request.getPronunciation());
+        word.setPartOfSpeech(request.getPartOfSpeech());
+        word.setEtymology(request.getEtymology());
+        word.setMnemonic(request.getMnemonic());
+        word.setUsageNote(request.getUsageNote());
+        word.setSynonyms(request.getSynonyms());
+        word.setAntonyms(request.getAntonyms());
+        word.setSourceContext(request.getSourceContext());
+        word.setUserExample(request.getUserExample());
+        word.setUserMnemonic(request.getUserMnemonic());
         word.setCategory(resolveCategory(request.getCategoryId(), user));
 
         return toWordResponse(wordRepository.save(word));
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
     public void deleteWord(Long userId, Long wordId) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(wordId, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Word", "id", wordId));
-        wordRepository.delete(word);
+        word.setDeletedAt(java.time.Instant.now());
+        word.setDeletedBy(userId);
+        wordRepository.save(word);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    public void restoreWord(Long userId, Long wordId) {
+        wordRepository.restoreByIdAndUser(wordId, userId);
     }
 
     /** Resolves an optional category ID to a Category entity, or null. */
@@ -117,6 +161,12 @@ public class WordService {
         if (categoryId == null) return null;
         return categoryRepository.findByIdAndUser(categoryId, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
+    }
+
+    private String normalizeDifficulty(String difficulty) {
+        if (difficulty == null || difficulty.isBlank()) return null;
+        String normalized = difficulty.trim().toUpperCase().replace(' ', '_');
+        return java.util.Set.of("EASY", "MEDIUM", "HARD", "SUPER_HARD").contains(normalized) ? normalized : null;
     }
 
     public WordResponse toWordResponse(Word word) {
@@ -130,6 +180,19 @@ public class WordService {
                 .imageUrl(word.getImageUrl())
                 .audioUrl(word.getAudioUrl())
                 .notes(word.getNotes())
+                .difficultyTier(word.getDifficultyTier())
+                .lapseCount(word.getLapseCount())
+                .pronunciation(word.getPronunciation())
+                .partOfSpeech(word.getPartOfSpeech())
+                .etymology(word.getEtymology())
+                .mnemonic(word.getMnemonic())
+                .usageNote(word.getUsageNote())
+                .synonyms(word.getSynonyms())
+                .antonyms(word.getAntonyms())
+                .sourceContext(word.getSourceContext())
+                .userExample(word.getUserExample())
+                .userMnemonic(word.getUserMnemonic())
+                .aiEnrichmentStatus(word.getAiEnrichmentStatus())
                 .categoryId(word.getCategory() != null ? word.getCategory().getId() : null)
                 .categoryName(word.getCategory() != null ? word.getCategory().getName() : null)
                 .categoryColor(word.getCategory() != null ? word.getCategory().getColor() : null)

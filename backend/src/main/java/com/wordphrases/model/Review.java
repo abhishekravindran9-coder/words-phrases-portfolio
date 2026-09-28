@@ -7,6 +7,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -26,7 +27,8 @@ import java.time.LocalDateTime;
     name = "reviews",
     indexes = {
         @Index(name = "idx_reviews_user_id", columnList = "user_id"),
-        @Index(name = "idx_reviews_review_date", columnList = "review_date")
+        @Index(name = "idx_reviews_review_date", columnList = "review_date"),
+        @Index(name = "idx_reviews_user_reviewed_at", columnList = "user_id, reviewed_at")
     }
 )
 @Getter
@@ -60,6 +62,24 @@ public class Review {
     /** How long the user spent on this card, in seconds. */
     @Column(name = "time_taken_seconds")
     private Long timeTakenSeconds;
+
+    /** Exact event instant; null on legacy events recorded before event-time tracking. */
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+
+    /** Client IANA zone captured for local calendar/hour analytics. */
+    @Column(name = "timezone_id", length = 64)
+    private String timezoneId;
+
+    /** RECALL, MULTIPLE_CHOICE, FILL_BLANK_WORD, or FILL_BLANK_SENTENCE. */
+    @Column(name = "question_format", length = 32)
+    private String questionFormat;
+
+    @Column(name = "interval_before_days")
+    private Integer intervalBeforeDays;
+
+    @Column(name = "interval_after_days")
+    private Integer intervalAfterDays;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

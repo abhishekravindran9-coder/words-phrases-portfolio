@@ -1,7 +1,9 @@
 package com.wordphrases.repository;
 
 import com.wordphrases.model.User;
+import com.wordphrases.model.Review;
 import com.wordphrases.model.Word;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Modifying;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +22,10 @@ import java.util.Optional;
  */
 @Repository
 public interface WordRepository extends JpaRepository<Word, Long> {
+
+    @Modifying
+    @Query(value = "UPDATE words SET deleted_at = NULL, deleted_by = NULL WHERE id = :wordId AND user_id = :userId", nativeQuery = true)
+    int restoreByIdAndUser(@Param("wordId") Long wordId, @Param("userId") Long userId);
 
     Page<Word> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
@@ -33,6 +40,12 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     Optional<Word> findByIdAndUser(Long id, User user);
 
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND LOWER(w.word) = LOWER(:word) AND (:entryType IS NULL OR w.entryType = :entryType) AND (:excludeId IS NULL OR w.id <> :excludeId)")
+    List<Word> findDuplicates(@Param("user") User user,
+                              @Param("word") String word,
+                              @Param("entryType") String entryType,
+                              @Param("excludeId") Long excludeId);
+
     List<Word> findByUserAndCategoryId(User user, Long categoryId);
 
     /** Words due for review today or overdue. */
@@ -46,10 +59,10 @@ public interface WordRepository extends JpaRepository<Word, Long> {
                                        @Param("through") LocalDate through,
                                        Pageable pageable);
 
-        @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through")
-        long countApproachingDueWords(@Param("user") User user,
-                                      @Param("today") LocalDate today,
-                                      @Param("through") LocalDate through);
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through")
+    long countApproachingDueWords(@Param("user") User user,
+                                  @Param("today") LocalDate today,
+                                  @Param("through") LocalDate through);
 
     long countByUser(User user);
 
@@ -97,8 +110,12 @@ public interface WordRepository extends JpaRepository<Word, Long> {
           AND (:entryType  IS NULL OR w.entryType   = :entryType)
           AND (:categoryId IS NULL OR w.category.id = :categoryId)
           AND (:mastered   IS NULL OR w.mastered    = :mastered)
-          AND (LOWER(w.word)       LIKE LOWER(CONCAT('%', :query, '%'))
-               OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%')))
+        AND (LOWER(w.word) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.exampleSentence) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.notes) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.mnemonic) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.userExample) LIKE LOWER(CONCAT('%', :query, '%')))
         """)
     Page<Word> findWithFiltersAndSearch(
         @Param("user")       User    user,
@@ -118,6 +135,46 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     long countOverdue(@Param("user") User user, @Param("yesterday") LocalDate yesterday);
 
     long countByUserAndEntryType(User user, String entryType);
+
+    @Query("SELECT COUNT(DISTINCT w) FROM Word w LEFT JOIN Review r ON r.word = w WHERE w.user = :user AND w.mastered = false AND r.id IS NULL")
+    long countNewCards(@Param("user") User user);
+
+    @Query("SELECT COUNT(DISTINCT w) FROM Word w JOIN Review r ON r.word = w WHERE w.user = :user AND w.mastered = false AND w.intervalDays < 7")
+    long countLearningCards(@Param("user") User user);
+
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.intervalDays >= 7 AND w.intervalDays < 21")
+    long countYoungCards(@Param("user") User user);
+
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.intervalDays >= 21")
+    long countMatureCards(@Param("user") User user);
+
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.intervalDays < 21 ORDER BY w.intervalDays DESC, w.repetitions DESC, w.easeFactor ASC")
+    List<Word> findClosestToMature(User user, Pageable pageable);
+
+    @Query("""
+        SELECT w, COUNT(r), AVG(r.quality), SUM(CASE WHEN r.quality < 3 THEN 1 ELSE 0 END)
+        FROM Word w JOIN Review r ON r.word = w
+        WHERE w.user = :user AND r.reviewDate BETWEEN :from AND :to
+        GROUP BY w
+        HAVING SUM(CASE WHEN r.quality < 3 THEN 1 ELSE 0 END) >= :minLapses OR AVG(r.quality) < :maxAverage
+        ORDER BY SUM(CASE WHEN r.quality < 3 THEN 1 ELSE 0 END) DESC, AVG(r.quality) ASC
+        """)
+    List<Object[]> findLeeches(@Param("user") User user,
+                               @Param("from") LocalDate from,
+                               @Param("to") LocalDate to,
+                               @Param("minLapses") long minLapses,
+                               @Param("maxAverage") double maxAverage,
+                               Pageable pageable);
+
+    @Query("SELECT w.nextReviewDate, COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate BETWEEN :from AND :to GROUP BY w.nextReviewDate ORDER BY w.nextReviewDate")
+    List<Object[]> countScheduledReviewsByDate(@Param("user") User user,
+                                               @Param("from") LocalDate from,
+                                               @Param("to") LocalDate to);
+
+    @Query("SELECT w.difficultyTier, COUNT(r), SUM(CASE WHEN r.quality >= 3 THEN 1 ELSE 0 END) FROM Review r JOIN r.word w WHERE r.user = :user AND r.reviewDate BETWEEN :from AND :to AND w.difficultyTier IS NOT NULL GROUP BY w.difficultyTier")
+    List<Object[]> summarizeRecallByDifficulty(@Param("user") User user,
+                                                @Param("from") LocalDate from,
+                                                @Param("to") LocalDate to);
 
     /** Mastered count per category for a user. */
     @Query("SELECT w.category.id, COUNT(w) FROM Word w WHERE w.user = :user AND w.mastered = true AND w.category IS NOT NULL GROUP BY w.category.id")

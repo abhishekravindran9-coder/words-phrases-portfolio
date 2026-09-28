@@ -25,4 +25,7 @@ public class PracticeAnswerRequest {
     private String format;
 
     private Boolean correct;
+
+    /** IANA timezone reported by the browser for local review-day analytics. */
+    private String timezoneId;
 }

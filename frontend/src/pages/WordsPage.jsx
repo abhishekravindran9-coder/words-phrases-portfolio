@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { wordService } from '../services/wordService';
 import { categoryService } from '../services/categoryService';
 import { downloadWordsPdf, preparePdfExport } from '../utils/pdfExport';
@@ -8,6 +9,7 @@ import WordForm from '../components/words/WordForm';
 import PdfExportPanel from '../components/common/PdfExportPanel';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
+import PageHeader from '../components/common/PageHeader';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import {
@@ -41,6 +43,8 @@ const PAGE_SIZES = [12, 24, 48];
  * mastery filter, grid/list toggle, page size selector and a stats bar.
  */
 export default function WordsPage() {
+  const [searchParams] = useSearchParams();
+  const deepLinkWordId = searchParams.get('wordId');
   // ── Fetch state ────────────────────────────────────────────────────────
   const [words,         setWords]         = useState([]);
   const [stats,         setStats]         = useState(null);
@@ -60,6 +64,9 @@ export default function WordsPage() {
   const [mastered,   setMastered]   = useState(null);     // null | true | false
   const [sortIdx,    setSortIdx]    = useState(0);        // index into SORT_OPTIONS
   const [viewMode,   setViewMode]   = useState('grid');   // 'grid' | 'list'
+  const [coverDefinitions, setCoverDefinitions] = useState(false);
+  const [smartView, setSmartView] = useState('all');
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
   // ── Modal state ────────────────────────────────────────────────────────
@@ -111,6 +118,12 @@ export default function WordsPage() {
   useEffect(() => {
     categoryService.getCategories().then(setCategories).catch(() => {});
   }, []);
+  useEffect(() => {
+    if (!deepLinkWordId) return;
+    wordService.getWord(deepLinkWordId)
+      .then(setViewWord)
+      .catch(() => toast.error('That vocabulary card could not be opened.'));
+  }, [deepLinkWordId]);
 
   // ── Filter helpers (reset page on any filter change) ──────────────────
 
@@ -120,6 +133,25 @@ export default function WordsPage() {
   const handleMasteredToggle = (v) => { setMastered(v);  setPage(0); };
   const handleSortChange     = (idx) => { setSortIdx(idx); setPage(0); };
   const handlePageSizeChange = (s) => { setPageSize(s);  setPage(0); };
+  const applySmartView = (view) => {
+    setSmartView(view); setPage(0);
+    if (view === 'due') { setMastered(false); setSortIdx(4); }
+    else if (view === 'weak') { setMastered(false); setSortIdx(5); }
+    else if (view === 'recent') { setMastered(null); setSortIdx(0); }
+    else if (view === 'never') { setMastered(false); setSortIdx(0); }
+    else { setMastered(null); setSortIdx(0); }
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.target.matches('input, textarea, select')) return;
+      if (event.key === '/') { event.preventDefault(); document.querySelector('[aria-label="Search words and phrases"]')?.focus(); }
+      if (event.key.toLowerCase() === 'n') { event.preventDefault(); openAdd(); }
+      if (event.key.toLowerCase() === 'e' && words[0]) { event.preventDefault(); openEdit(words[0]); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  });
 
   const clearAllFilters = () => {
     setQuery(''); setTab(''); setCategoryId(null);
@@ -140,16 +172,21 @@ export default function WordsPage() {
     try {
       if (editWord) {
         const updated = await wordService.updateWord(editWord.id, payload);
-        setWords((prev) => prev.map((w) => w.id === editWord.id ? updated : w));
         if (viewWord?.id === editWord.id) setViewWord(updated);
         toast.success('Word updated!');
       } else {
         await wordService.createWord(payload);
         toast.success('Word added!');
-        // New word position depends on sort/filter — do a silent background refetch
-        silentFetch();
       }
-      setModalOpen(false);
+      // Reconcile the list after every mutation so filters, pagination, and
+      // server-derived fields never remain stale.
+      await silentFetch();
+      if (payload.saveAnother && !editWord) {
+        setEditWord(null);
+        setModalOpen(true);
+      } else {
+        setModalOpen(false);
+      }
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save word');
@@ -159,19 +196,59 @@ export default function WordsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this word?')) return;
+    if (!window.confirm('Move this entry to trash? You can undo this action for a short time.')) return;
     const prevWords = words;
     setWords((prev) => prev.filter((w) => w.id !== id));
     if (viewWord?.id === id) setViewWord(null);
     try {
       await wordService.deleteWord(id);
-      toast.success('Word deleted');
+      toast((t) => (
+        <div className="flex items-center gap-3 text-sm">
+          <span>Entry moved to trash.</span>
+          <button type="button" className="font-bold text-[var(--mv-moss)] underline" onClick={async () => {
+            await wordService.restoreWord(id);
+            toast.dismiss(t.id);
+            await silentFetch();
+            toast.success('Entry restored.');
+          }}>Undo</button>
+        </div>
+      ), { duration: 6000 });
       fetchStats();
       silentFetch(); // reconcile page counts
     } catch {
       setWords(prevWords);
       toast.error('Failed to delete');
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Move ${selectedIds.length} selected ${selectedIds.length === 1 ? 'entry' : 'entries'} to trash?`)) return;
+    const ids = [...selectedIds];
+    setWords((current) => current.filter((word) => !ids.includes(word.id)));
+    setSelectedIds([]);
+    try {
+      await Promise.all(ids.map((id) => wordService.deleteWord(id)));
+      toast((t) => <div className="flex items-center gap-3 text-sm"><span>{ids.length} entries moved to trash.</span><button type="button" className="font-bold text-[var(--mv-moss)] underline" onClick={async () => { await Promise.all(ids.map((id) => wordService.restoreWord(id))); toast.dismiss(t.id); await silentFetch(); toast.success('Entries restored.'); }}>Undo</button></div>, { duration: 7000 });
+      fetchStats();
+      silentFetch();
+    } catch {
+      setSelectedIds([]);
+      await silentFetch();
+      toast.error('Some entries could not be moved to trash.');
+    }
+  };
+
+  const handleExportSelected = async () => {
+    const selectedWords = words.filter((word) => selectedIds.includes(word.id));
+    if (!selectedWords.length) return;
+    setExporting(true);
+    try {
+      const pdfMake = await preparePdfExport();
+      await downloadWordsPdf(selectedWords, pdfMake, exportPageSize);
+      toast.success(`Exported ${selectedWords.length} selected entries`);
+    } catch { toast.error('Could not export selected entries'); }
+    finally { setExporting(false); }
   };
 
   const handleCreateCategory = async (name) => {
@@ -217,53 +294,14 @@ export default function WordsPage() {
     <div className="sm:max-w-5xl sm:mx-auto space-y-4">
 
       {/* ── Header ── */}
-      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">My Vault</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Your words and phrases, all in one place.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={openAdd}>
-            <PlusIcon className="h-4 w-4 mr-1" /> Add Entry
-          </Button>
-        </div>
-      </div>
+      <PageHeader space="Learn" title="My Words" description="Your words and phrases, gathered in one calm, searchable place." action={<Button onClick={openAdd} className="!bg-[var(--mv-terracotta)] hover:!bg-[#984a36]"><PlusIcon className="h-4 w-4" /> Add entry</Button>} />
 
-      {/* ── Stats bar ── */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatChip
-            icon={<AdjustmentsHorizontalIcon className="h-4 w-4" />}
-            label="Total"
-            value={stats.total}
-          />
-          <StatChip
-            icon={<CheckBadgeIcon className="h-4 w-4" />}
-            label="Mastered"
-            value={stats.mastered}
-          />
-          <StatChip
-            icon={<BookOpenIcon className="h-4 w-4" />}
-            label="Words"
-            value={stats.words}
-          />
-          <StatChip
-            icon={<ChatBubbleLeftRightIcon className="h-4 w-4" />}
-            label="Phrases"
-            value={stats.phrases}
-          />
-        </div>
-      )}
+      {stats && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--mv-line)] pb-4 text-sm text-[var(--mv-ink-soft)]"><span><strong className="text-[var(--mv-ink)]">{stats.total}</strong> entries · <strong className="text-[var(--mv-moss)]">{stats.dueToday}</strong> due today</span>{stats.dueToday > 0 && <Button size="sm" onClick={() => window.location.assign('/practice')} className="!bg-[var(--mv-moss)] hover:!bg-[var(--mv-moss-dark)]">Practice due words</Button>}</div>}
 
-      <PdfExportPanel
-        collection="vocabulary"
-        pageSize={exportPageSize}
-        onPageSizeChange={setExportPageSize}
-        onDownload={handleExport}
-        exporting={exporting}
-        loading={loading}
-        count={totalElements}
-      />
+      <details className="group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] px-4 text-sm font-semibold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]"><span>Export vocabulary</span><span className="text-xs group-open:rotate-180">⌄</span></summary>
+        <div className="mt-2"><PdfExportPanel collection="vocabulary" pageSize={exportPageSize} onPageSizeChange={setExportPageSize} onDownload={handleExport} exporting={exporting} loading={loading} count={totalElements} /></div>
+      </details>
 
       {/* ── Primary browse controls ── */}
       <section aria-label="Search and browse vocabulary" className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-4">
@@ -318,6 +356,7 @@ export default function WordsPage() {
           >
             <Squares2X2Icon className="h-4 w-4" />
           </button>
+          <button type="button" onClick={() => setViewMode('recall')} aria-pressed={viewMode === 'recall'} className={`min-h-10 rounded-xl border px-3 text-xs font-bold ${viewMode === 'recall' ? 'border-[var(--mv-moss)] bg-[var(--mv-moss)] text-white' : 'border-[var(--mv-line)] text-[var(--mv-ink-soft)]'}`}>Recall</button>
           <button
             onClick={() => setViewMode('list')}
             aria-label="List view"
@@ -402,6 +441,13 @@ export default function WordsPage() {
         </div>
       </section>
 
+      <div className="flex flex-wrap items-center gap-2" aria-label="Saved word views">
+        {[['all', 'All'], ['due', 'Due now'], ['weak', 'Weak words'], ['recent', 'Recently added'], ['never', 'Never reviewed']].map(([value, label]) => <button key={value} type="button" onClick={() => applySmartView(value)} aria-pressed={smartView === value} className={`min-h-9 rounded-full border px-3 text-xs font-bold ${smartView === value ? 'border-[var(--mv-moss)] bg-[var(--mv-moss)] text-white' : 'border-[var(--mv-line)] text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]'}`}>{label}</button>)}
+        {viewMode === 'recall' && <button type="button" onClick={() => setCoverDefinitions((value) => !value)} aria-pressed={coverDefinitions} className="min-h-9 rounded-full border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)]">{coverDefinitions ? 'Show definitions' : 'Cover definitions'}</button>}
+      </div>
+
+        {viewMode !== 'list' && words.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] bg-[var(--mv-paper-deep)] px-4 py-3"><label className="flex min-h-10 items-center gap-2 text-xs font-bold text-[var(--mv-ink-soft)]"><input type="checkbox" checked={words.length > 0 && words.every((word) => selectedIds.includes(word.id))} onChange={(event) => setSelectedIds(event.target.checked ? words.map((word) => word.id) : [])} className="h-4 w-4 accent-[var(--mv-moss)]" /> Select visible cards</label>{selectedIds.length > 0 ? <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-bold text-[var(--mv-ink)]">{selectedIds.length} selected</span><button type="button" onClick={handleExportSelected} className="min-h-10 rounded-lg border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper)]">Export selected</button><button type="button" onClick={handleBulkDelete} className="min-h-10 rounded-lg border border-[var(--mv-terracotta)]/40 px-3 text-xs font-bold text-[var(--mv-terracotta)] hover:bg-[var(--mv-paper)]">Move to trash</button><button type="button" onClick={() => setSelectedIds([])} className="min-h-10 px-2 text-xs font-bold text-[var(--mv-ink-soft)]">Clear</button></div> : <span className="text-xs text-[var(--mv-ink-soft)]">Or click any card to select it</span>}</div>}
+
       {/* ── Active filter chips ── */}
       {activeChips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -440,10 +486,10 @@ export default function WordsPage() {
         </div>
       ) : words.length === 0 ? (
         <EmptyState query={query} tab={tab} hasFilters={hasActiveFilters} onAdd={openAdd} onClear={clearAllFilters} />
-      ) : viewMode === 'grid' ? (
+      ) : viewMode === 'grid' || viewMode === 'recall' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {words.map((w) => (
-            <WordCard key={w.id} word={w} onEdit={openEdit} onDelete={handleDelete} onView={openView} />
+            <WordCard key={w.id} word={w} recallMode={viewMode === 'recall'} coverDefinitions={coverDefinitions} selected={selectedIds.includes(w.id)} onSelect={(checked) => setSelectedIds((ids) => checked ? [...ids, w.id] : ids.filter((id) => id !== w.id))} onEdit={openEdit} onDelete={handleDelete} onView={openView} />
           ))}
         </div>
       ) : (

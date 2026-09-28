@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 public interface QuizAnswerRepository extends JpaRepository<QuizAnswer, Long> {
 
@@ -34,4 +35,14 @@ public interface QuizAnswerRepository extends JpaRepository<QuizAnswer, Long> {
 
     @Query("SELECT AVG(qa.timeTakenSeconds) FROM QuizAnswer qa WHERE qa.quizSession.user = :user AND qa.timeTakenSeconds IS NOT NULL AND qa.timeTakenSeconds > 0")
     Double findAverageTimePerQuestionForUser(@Param("user") User user);
+
+    @Query("SELECT qa.questionType, COUNT(qa), SUM(CASE WHEN qa.correct = true THEN 1 ELSE 0 END) FROM QuizAnswer qa WHERE qa.quizSession.user = :user AND qa.quizSession.completedAt BETWEEN :from AND :to GROUP BY qa.questionType")
+    List<Object[]> summarizeLegacyFormatAccuracy(@Param("user") User user,
+                                                  @Param("from") LocalDateTime from,
+                                                  @Param("to") LocalDateTime to);
+
+    @Query("SELECT qa.word.entryType, COUNT(qa), SUM(CASE WHEN qa.correct = true THEN 1 ELSE 0 END) FROM QuizAnswer qa WHERE qa.quizSession.user = :user AND qa.quizSession.completedAt BETWEEN :from AND :to GROUP BY qa.word.entryType")
+    List<Object[]> summarizeLegacyEntryTypeAccuracy(@Param("user") User user,
+                                                     @Param("from") LocalDateTime from,
+                                                     @Param("to") LocalDateTime to);
 }

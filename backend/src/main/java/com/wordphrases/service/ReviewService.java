@@ -10,10 +10,14 @@ import com.wordphrases.model.Word;
 import com.wordphrases.repository.ReviewRepository;
 import com.wordphrases.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -48,32 +52,56 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public List<WordResponse> getDueWords(Long userId) {
         User user = userService.getUserById(userId);
-        return wordRepository.findDueForReview(user, LocalDate.now())
+        LocalDate today = LocalDate.now(resolveZone(null, user.getTimezone()));
+        return wordRepository.findDueForReview(user, today)
                 .stream()
                 .map(wordService::toWordResponse)
                 .toList();
     }
+
+        @Transactional(readOnly = true)
+        public List<ReviewResponse> getHistory(Long userId, Long wordId) {
+        User user = userService.getUserById(userId);
+        Word word = wordRepository.findByIdAndUser(wordId, user)
+            .orElseThrow(() -> new ResourceNotFoundException("Word", "id", wordId));
+        return reviewRepository.findByUserAndWordOrderByReviewDateDesc(user, word).stream()
+            .map(review -> ReviewResponse.builder()
+                .reviewId(review.getId()).wordId(word.getId()).word(word.getWord())
+                .quality(review.getQuality()).reviewDate(review.getReviewDate())
+                .timeTakenSeconds(review.getTimeTakenSeconds()).createdAt(review.getCreatedAt())
+                .build()).toList();
+        }
 
     /**
      * Processes a review result, updates SM-2 scheduling fields on the word,
      * and persists the review event.
      */
     @Transactional
+    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
     public ReviewResponse submitReview(Long userId, ReviewResultRequest request) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(request.getWordId(), user)
                 .orElseThrow(() -> new ResourceNotFoundException("Word", "id", request.getWordId()));
 
-        applySM2(word, request.getQuality());
+        Instant reviewedAt = Instant.now();
+        String timezoneId = resolveTimezone(request.getTimezoneId(), user.getTimezone());
+        LocalDate reviewDate = reviewedAt.atZone(ZoneId.of(timezoneId)).toLocalDate();
+        int intervalBefore = word.getIntervalDays();
+        applySM2(word, request.getQuality(), reviewDate);
 
         word = wordRepository.save(word);
 
         Review review = Review.builder()
                 .word(word)
                 .user(user)
-                .reviewDate(LocalDate.now())
+                .reviewDate(reviewDate)
                 .quality(request.getQuality())
                 .timeTakenSeconds(request.getTimeTakenSeconds())
+            .reviewedAt(reviewedAt)
+            .timezoneId(timezoneId)
+            .questionFormat(normalizeFormat(request.getQuestionFormat()))
+            .intervalBeforeDays(intervalBefore)
+            .intervalAfterDays(word.getIntervalDays())
                 .build();
 
         review = reviewRepository.save(review);
@@ -100,11 +128,12 @@ public class ReviewService {
      * @param word    the vocabulary word to update
      * @param quality SM-2 quality rating (0–5)
      */
-    private void applySM2(Word word, int quality) {
+    private void applySM2(Word word, int quality, LocalDate today) {
         if (quality < 3) {
             // Failed recall – reset to re-learn
             word.setRepetitions(0);
             word.setIntervalDays(1);
+            word.setLapseCount((word.getLapseCount() == null ? 0 : word.getLapseCount()) + 1);
         } else {
             // Successful recall – advance the schedule
             int reps = word.getRepetitions();
@@ -123,7 +152,27 @@ public class ReviewService {
                 + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
         word.setEaseFactor(Math.max(MIN_EASE_FACTOR, ef));
 
-        word.setNextReviewDate(LocalDate.now().plusDays(word.getIntervalDays()));
+        word.setNextReviewDate(today.plusDays(word.getIntervalDays()));
         word.setMastered(word.getRepetitions() >= MASTERY_REPETITION_THRESHOLD);
+    }
+
+    private String normalizeFormat(String format) {
+        return format == null || format.isBlank() ? "RECALL" : format.trim().toUpperCase();
+    }
+
+    private String resolveTimezone(String requested, String stored) {
+        return resolveZone(requested, stored).getId();
+    }
+
+    private ZoneId resolveZone(String requested, String stored) {
+        for (String candidate : List.of(requested == null ? "" : requested, stored == null ? "" : stored, "UTC")) {
+            if (candidate.isBlank()) continue;
+            try {
+                return ZoneId.of(candidate);
+            } catch (DateTimeException ignored) {
+                // Try the stored timezone, then UTC for invalid or missing IDs.
+            }
+        }
+        return ZoneId.of("UTC");
     }
 }
