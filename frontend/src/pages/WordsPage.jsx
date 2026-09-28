@@ -66,7 +66,9 @@ export default function WordsPage() {
   const [viewMode,   setViewMode]   = useState('grid');   // 'grid' | 'list'
   const [coverDefinitions, setCoverDefinitions] = useState(false);
   const [smartView, setSmartView] = useState('all');
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedWordsById, setSelectedWordsById] = useState({});
+  const selectedIds = Object.values(selectedWordsById).map((word) => word.id);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   // ── Modal state ────────────────────────────────────────────────────────
@@ -91,6 +93,11 @@ export default function WordsPage() {
         categoryId, mastered, sortBy, sortDir,
       });
       setWords(data.content);
+      setSelectedWordsById((current) => {
+        const next = { ...current };
+        data.content.forEach((word) => { if (next[word.id]) next[word.id] = word; });
+        return next;
+      });
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
     } catch {
@@ -108,10 +115,36 @@ export default function WordsPage() {
         categoryId, mastered, sortBy, sortDir,
       });
       setWords(data.content);
+      setSelectedWordsById((current) => {
+        const next = { ...current };
+        data.content.forEach((word) => { if (next[word.id]) next[word.id] = word; });
+        return next;
+      });
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
     } catch { /* silently ignore */ }
   }, [page, pageSize, query, tab, categoryId, mastered, sortBy, sortDir]);
+
+  const setWordSelected = (word, selected) => {
+    setSelectedWordsById((current) => {
+      if (selected) return { ...current, [word.id]: word };
+      const next = { ...current };
+      delete next[word.id];
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    const allVisibleSelected = words.every((word) => selectedWordsById[word.id]);
+    setSelectedWordsById((current) => {
+      const next = { ...current };
+      words.forEach((word) => {
+        if (allVisibleSelected) delete next[word.id];
+        else next[word.id] = word;
+      });
+      return next;
+    });
+  };
 
   useEffect(() => { fetchWords(); }, [fetchWords]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -199,6 +232,11 @@ export default function WordsPage() {
     if (!window.confirm('Move this entry to trash? You can undo this action for a short time.')) return;
     const prevWords = words;
     setWords((prev) => prev.filter((w) => w.id !== id));
+    setSelectedWordsById((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     if (viewWord?.id === id) setViewWord(null);
     try {
       await wordService.deleteWord(id);
@@ -226,25 +264,28 @@ export default function WordsPage() {
     if (!window.confirm(`Move ${selectedIds.length} selected ${selectedIds.length === 1 ? 'entry' : 'entries'} to trash?`)) return;
     const ids = [...selectedIds];
     setWords((current) => current.filter((word) => !ids.includes(word.id)));
-    setSelectedIds([]);
+    setSelectedWordsById({});
+    setSelectionMode(false);
     try {
       await Promise.all(ids.map((id) => wordService.deleteWord(id)));
       toast((t) => <div className="flex items-center gap-3 text-sm"><span>{ids.length} entries moved to trash.</span><button type="button" className="font-bold text-[var(--mv-moss)] underline" onClick={async () => { await Promise.all(ids.map((id) => wordService.restoreWord(id))); toast.dismiss(t.id); await silentFetch(); toast.success('Entries restored.'); }}>Undo</button></div>, { duration: 7000 });
       fetchStats();
       silentFetch();
     } catch {
-      setSelectedIds([]);
+      setSelectedWordsById({});
+      setSelectionMode(false);
       await silentFetch();
       toast.error('Some entries could not be moved to trash.');
     }
   };
 
   const handleExportSelected = async () => {
-    const selectedWords = words.filter((word) => selectedIds.includes(word.id));
-    if (!selectedWords.length) return;
+    if (!selectedIds.length) return;
     setExporting(true);
     try {
       const pdfMake = await preparePdfExport();
+      const selectedWords = selectedIds.map((id) => selectedWordsById[id]).filter(Boolean);
+      if (!selectedWords.length) return;
       await downloadWordsPdf(selectedWords, pdfMake, exportPageSize);
       toast.success(`Exported ${selectedWords.length} selected entries`);
     } catch { toast.error('Could not export selected entries'); }
@@ -446,7 +487,12 @@ export default function WordsPage() {
         {viewMode === 'recall' && <button type="button" onClick={() => setCoverDefinitions((value) => !value)} aria-pressed={coverDefinitions} className="min-h-9 rounded-full border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)]">{coverDefinitions ? 'Show definitions' : 'Cover definitions'}</button>}
       </div>
 
-        {viewMode !== 'list' && words.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] bg-[var(--mv-paper-deep)] px-4 py-3"><label className="flex min-h-10 items-center gap-2 text-xs font-bold text-[var(--mv-ink-soft)]"><input type="checkbox" checked={words.length > 0 && words.every((word) => selectedIds.includes(word.id))} onChange={(event) => setSelectedIds(event.target.checked ? words.map((word) => word.id) : [])} className="h-4 w-4 accent-[var(--mv-moss)]" /> Select visible cards</label>{selectedIds.length > 0 ? <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-bold text-[var(--mv-ink)]">{selectedIds.length} selected</span><button type="button" onClick={handleExportSelected} className="min-h-10 rounded-lg border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper)]">Export selected</button><button type="button" onClick={handleBulkDelete} className="min-h-10 rounded-lg border border-[var(--mv-terracotta)]/40 px-3 text-xs font-bold text-[var(--mv-terracotta)] hover:bg-[var(--mv-paper)]">Move to trash</button><button type="button" onClick={() => setSelectedIds([])} className="min-h-10 px-2 text-xs font-bold text-[var(--mv-ink-soft)]">Clear</button></div> : <span className="text-xs text-[var(--mv-ink-soft)]">Or click any card to select it</span>}</div>}
+        {words.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] bg-[var(--mv-paper-deep)] px-4 py-3" aria-label="Word selection controls">
+          {!selectionMode ? <button type="button" onClick={() => setSelectionMode(true)} className="min-h-10 rounded-lg border border-[var(--mv-line)] bg-[var(--mv-paper)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:border-[var(--mv-moss)] hover:text-[var(--mv-moss)]">Select entries</button> : <>
+            <div className="flex min-h-10 items-center gap-3"><span className="text-xs font-bold text-[var(--mv-ink)]">{selectedIds.length} selected</span><button type="button" onClick={toggleVisibleSelection} className="min-h-10 rounded-lg border border-[var(--mv-line)] bg-[var(--mv-paper)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:border-[var(--mv-moss)] hover:text-[var(--mv-moss)]">{words.every((word) => selectedWordsById[word.id]) ? 'Deselect visible' : 'Select visible'}</button></div>
+            <div className="flex flex-wrap items-center gap-2">{selectedIds.length > 0 && <><button type="button" onClick={handleExportSelected} disabled={exporting} className="min-h-10 rounded-lg border border-[var(--mv-line)] px-3 text-xs font-bold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper)] disabled:cursor-wait disabled:opacity-60">{exporting ? 'Preparing PDF…' : 'Export selected'}</button><button type="button" onClick={handleBulkDelete} className="min-h-10 rounded-lg border border-[var(--mv-terracotta)]/40 px-3 text-xs font-bold text-[var(--mv-terracotta)] hover:bg-[var(--mv-paper)]">Move to trash</button></>}<button type="button" onClick={() => { setSelectedWordsById({}); setSelectionMode(false); }} className="min-h-10 px-2 text-xs font-bold text-[var(--mv-ink-soft)]">Done</button></div>
+          </>}
+        </div>}
 
       {/* ── Active filter chips ── */}
       {activeChips.length > 0 && (
@@ -489,13 +535,13 @@ export default function WordsPage() {
       ) : viewMode === 'grid' || viewMode === 'recall' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {words.map((w) => (
-            <WordCard key={w.id} word={w} recallMode={viewMode === 'recall'} coverDefinitions={coverDefinitions} selected={selectedIds.includes(w.id)} onSelect={(checked) => setSelectedIds((ids) => checked ? [...ids, w.id] : ids.filter((id) => id !== w.id))} onEdit={openEdit} onDelete={handleDelete} onView={openView} />
+            <WordCard key={w.id} word={w} recallMode={viewMode === 'recall'} coverDefinitions={coverDefinitions} selected={Boolean(selectedWordsById[w.id])} selectionMode={selectionMode} onSelect={(checked) => setWordSelected(w, checked)} onEdit={openEdit} onDelete={handleDelete} onView={openView} />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
           {words.map((w) => (
-            <WordCard key={w.id} word={w} onEdit={openEdit} onDelete={handleDelete} onView={openView} compact />
+            <WordCard key={w.id} word={w} selected={Boolean(selectedWordsById[w.id])} selectionMode={selectionMode} onSelect={(checked) => setWordSelected(w, checked)} onEdit={openEdit} onDelete={handleDelete} onView={openView} compact />
           ))}
         </div>
       )}

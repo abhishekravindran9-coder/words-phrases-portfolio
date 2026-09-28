@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EllipsisHorizontalIcon, EyeIcon, PencilIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, EllipsisHorizontalIcon, EyeIcon, PencilIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
 import { useSpeech } from '../../hooks/useSpeech';
 
 function stageFor(word) {
@@ -21,7 +21,7 @@ function dueLabel(date) {
   return `Due in ${days}d`;
 }
 
-export default function WordCard({ word, onEdit, onDelete, onView, compact = false, recallMode = false, coverDefinitions = false, selected = false, onSelect }) {
+export default function WordCard({ word, onEdit, onDelete, onView, compact = false, recallMode = false, coverDefinitions = false, selected = false, selectionMode = false, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { speak, speaking, supported } = useSpeech();
@@ -30,7 +30,8 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
   const isProblem = (word.lapseCount || 0) >= 3;
 
   if (compact) return (
-    <div className="group flex min-h-14 items-center gap-3 border-b border-[var(--mv-line)] px-3 py-3 hover:bg-[var(--mv-paper-deep)]" onClick={() => onView?.(word)} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onView?.(word)}>
+    <div className={`group flex min-h-14 items-center gap-3 rounded-lg border-b border-[var(--mv-line)] px-3 py-3 transition-colors ${selectionMode && selected ? 'border-l-4 border-l-[var(--mv-moss)] bg-[color-mix(in_srgb,var(--mv-moss)_9%,var(--mv-paper))]' : 'hover:bg-[var(--mv-paper-deep)]'}`} onClick={() => selectionMode ? onSelect?.(!selected) : onView?.(word)} role="button" aria-pressed={selectionMode ? selected : undefined} aria-label={selectionMode ? `${word.word}, ${selected ? 'selected' : 'not selected'}` : `Open ${word.word}`} tabIndex={0} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || (selectionMode && event.key === ' ')) { event.preventDefault(); selectionMode ? onSelect?.(!selected) : onView?.(word); } }}>
+      {selectionMode && selected && <CheckCircleIcon className="h-5 w-5 shrink-0 text-[var(--mv-moss)]" aria-hidden="true" />}
       <span className="mv-display min-w-0 flex-1 truncate text-lg text-[var(--mv-ink)]">{word.word}</span>
       <span className={`hidden rounded-full px-2 py-1 text-[10px] font-bold sm:inline-flex ${stageClass}`}>{stage}</span>
       <span className={`shrink-0 text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate)}</span>
@@ -43,21 +44,21 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
 
   return (
     <article
-      className={`group flex h-full flex-col rounded-[var(--mv-radius-lg)] border bg-[var(--mv-paper)] p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--mv-shadow-soft)] ${selected ? 'border-[var(--mv-moss)] bg-[color-mix(in_srgb,var(--mv-moss)_6%,var(--mv-paper))] ring-2 ring-[var(--mv-moss)]/20' : 'border-[var(--mv-line)]'}`}
-      onClick={() => onSelect?.(!selected)}
+      className={`group relative flex h-full flex-col rounded-[var(--mv-radius-lg)] border bg-[var(--mv-paper)] p-5 shadow-sm transition-all duration-200 ${selectionMode ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--mv-shadow-soft)]' : ''} ${selectionMode && selected ? 'border-2 border-[var(--mv-moss)] bg-[color-mix(in_srgb,var(--mv-moss)_9%,var(--mv-paper))] ring-2 ring-[var(--mv-moss)]/30 shadow-[var(--mv-shadow-soft)]' : 'border-[var(--mv-line)]'}`}
+      onClick={() => selectionMode && onSelect?.(!selected)}
       onKeyDown={(event) => {
-        if (onSelect && (event.key === ' ' || event.key === 'Enter')) {
+        if (selectionMode && event.target === event.currentTarget && (event.key === ' ' || event.key === 'Enter')) {
           event.preventDefault();
           onSelect(!selected);
         }
       }}
-      role={onSelect ? 'checkbox' : undefined}
-      aria-checked={onSelect ? selected : undefined}
-      tabIndex={onSelect ? 0 : undefined}
+      role={selectionMode ? 'group' : undefined}
+      aria-label={selectionMode ? `${word.word}, ${selected ? 'selected' : 'not selected'}. Press Enter or Space to toggle selection.` : undefined}
+      tabIndex={selectionMode ? 0 : undefined}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {onSelect && <label className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--mv-line)] bg-[var(--mv-paper)] transition-colors hover:border-[var(--mv-moss)]" onClick={(event) => event.stopPropagation()} title={selected ? 'Deselect entry' : 'Select entry'}><input type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${word.word}`} className="h-4 w-4 accent-[var(--mv-moss)]" /></label>}
+          {selectionMode && selected && <CheckCircleIcon className="h-5 w-5 text-[var(--mv-moss)]" aria-hidden="true" />}
           <span className="rounded-full bg-[var(--mv-paper-deep)] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--mv-ink-soft)]">{word.entryType === 'PHRASE' ? 'Phrase' : 'Word'}</span>
           <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${stageClass}`}>{stage}</span>
           {word.difficultyTier && <span className="rounded-full bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700 dark:bg-sky-900/30 dark:text-sky-200">{word.difficultyTier.replace('_', ' ').toLowerCase()}</span>}
@@ -68,10 +69,10 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
           {menuOpen && <div className="absolute right-0 top-10 z-10 w-36 rounded-xl border border-[var(--mv-line)] bg-[var(--mv-paper)] p-1 shadow-xl" onClick={(event) => event.stopPropagation()}><button type="button" onClick={() => onView?.(word)} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold text-[var(--mv-ink)] hover:bg-[var(--mv-paper-deep)]"><EyeIcon className="h-4 w-4" />Read</button><button type="button" onClick={() => onEdit?.(word)} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-semibold text-[var(--mv-ink)] hover:bg-[var(--mv-paper-deep)]"><PencilIcon className="h-4 w-4" />Edit</button><button type="button" onClick={() => onDelete?.(word.id)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-xs font-semibold text-[var(--mv-terracotta)] hover:bg-[var(--mv-paper-deep)]">Delete</button></div>}
         </div>
       </div>
-      <button type="button" onClick={(event) => { event.stopPropagation(); onView?.(word); }} className="mt-5 text-left"><h2 className="mv-display text-3xl leading-tight text-[var(--mv-ink)]">{word.word}</h2>{(word.partOfSpeech || word.pronunciation) && <p className="mt-1 text-xs italic text-[var(--mv-ink-soft)]">{word.pronunciation}{word.pronunciation && word.partOfSpeech ? ' · ' : ''}{word.partOfSpeech}</p>}<p className={`mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--mv-ink-soft)] ${recallMode && coverDefinitions ? 'select-none blur-sm' : ''}`}>{word.definition || 'No definition yet.'}</p></button>
+      <button type="button" onClick={(event) => { event.stopPropagation(); selectionMode ? onSelect?.(!selected) : onView?.(word); }} className="mt-5 text-left"><h2 className="mv-display text-3xl leading-tight text-[var(--mv-ink)]">{word.word}</h2>{(word.partOfSpeech || word.pronunciation) && <p className="mt-1 text-xs italic text-[var(--mv-ink-soft)]">{word.pronunciation}{word.pronunciation && word.partOfSpeech ? ' · ' : ''}{word.partOfSpeech}</p>}<p className={`mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--mv-ink-soft)] ${recallMode && coverDefinitions ? 'select-none blur-sm' : ''}`}>{word.definition || 'No definition yet.'}</p></button>
       {word.categoryName && <p className="mt-4 text-xs font-semibold text-[var(--mv-ink-soft)]">{word.categoryName}</p>}
       {expanded && <div className="mt-4 space-y-4 border-t border-[var(--mv-line)] pt-4">{examples.length > 0 && <div><p className="mv-eyebrow mb-2">Examples</p><ul className="space-y-2 text-sm italic text-[var(--mv-ink-soft)]">{examples.map((example, index) => <li key={index} className="border-l-2 border-[var(--mv-moss)] pl-3">{example}</li>)}</ul></div>}{word.notes && <div><p className="mv-eyebrow mb-2">Notes</p><p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--mv-ink-soft)]">{word.notes}</p></div>}</div>}
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--mv-line)] pt-4"><button type="button" onClick={() => setExpanded((open) => !open)} className="min-h-10 text-xs font-bold text-[var(--mv-moss)]">{expanded ? 'Show less' : 'Examples & notes'}</button><span title={word.nextReviewDate ? `Next review ${word.nextReviewDate}` : 'No review scheduled'} className={`text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate)}</span></div>
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--mv-line)] pt-4"><button type="button" onClick={(event) => { event.stopPropagation(); setExpanded((open) => !open); }} className="min-h-10 text-xs font-bold text-[var(--mv-moss)]">{expanded ? 'Show less' : 'Examples & notes'}</button><span title={word.nextReviewDate ? `Next review ${word.nextReviewDate}` : 'No review scheduled'} className={`text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate)}</span></div>
     </article>
   );
 }
