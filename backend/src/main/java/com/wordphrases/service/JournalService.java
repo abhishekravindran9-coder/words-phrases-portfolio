@@ -11,6 +11,7 @@ import com.wordphrases.repository.WordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,7 @@ public class JournalService {
     }
 
     @Transactional
+        @CacheEvict(cacheNames = "today", allEntries = true)
     public JournalEntryResponse createEntry(Long userId, JournalEntryRequest request) {
         User user = userService.getUserById(userId);
         List<Word> words = resolveWords(request.getUsedWordIds(), user);
@@ -64,6 +66,7 @@ public class JournalService {
     }
 
     @Transactional
+        @CacheEvict(cacheNames = "today", allEntries = true)
     public JournalEntryResponse updateEntry(Long userId, Long entryId, JournalEntryRequest request) {
         User user = userService.getUserById(userId);
         JournalEntry entry = journalEntryRepository.findByIdAndUser(entryId, user)
@@ -81,6 +84,7 @@ public class JournalService {
     }
 
     @Transactional
+        @CacheEvict(cacheNames = "today", allEntries = true)
     public void deleteEntry(Long userId, Long entryId) {
         User user = userService.getUserById(userId);
         JournalEntry entry = journalEntryRepository.findByIdAndUser(entryId, user)

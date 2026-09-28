@@ -26,6 +26,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     long countByUser(User user);
 
+    long countByWord(Word word);
+
     long countByUserAndQualityGreaterThanEqual(User user, Integer quality);
 
     java.util.Optional<Review> findFirstByUserOrderByReviewDateAsc(User user);

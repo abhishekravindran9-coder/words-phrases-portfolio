@@ -39,12 +39,15 @@ const SORT_OPTIONS = [
 const PAGE_SIZES = [12, 24, 48];
 
 /**
- * My Words page – full-featured browse with sort, category filter,
+ * Words page – full-featured browse with sort, category filter,
  * mastery filter, grid/list toggle, page size selector and a stats bar.
  */
 export default function WordsPage() {
   const [searchParams] = useSearchParams();
   const deepLinkWordId = searchParams.get('wordId');
+  const deepLinkStage = searchParams.get('stage')?.toUpperCase() || null;
+  const deepLinkDue = searchParams.get('dueOnly') === 'true';
+  const deepLinkDueDate = searchParams.get('dueDate') || null;
   // ── Fetch state ────────────────────────────────────────────────────────
   const [words,         setWords]         = useState([]);
   const [stats,         setStats]         = useState(null);
@@ -62,10 +65,13 @@ export default function WordsPage() {
   const [tab,        setTab]        = useState('');        // '' | 'WORD' | 'PHRASE'
   const [categoryId, setCategoryId] = useState(null);
   const [mastered,   setMastered]   = useState(null);     // null | true | false
+  const [dueOnly, setDueOnly] = useState(deepLinkDue);
+  const [dueDate, setDueDate] = useState(deepLinkDueDate);
+  const [stage, setStage] = useState(deepLinkStage);
   const [sortIdx,    setSortIdx]    = useState(0);        // index into SORT_OPTIONS
   const [viewMode,   setViewMode]   = useState('grid');   // 'grid' | 'list'
   const [coverDefinitions, setCoverDefinitions] = useState(false);
-  const [smartView, setSmartView] = useState('all');
+  const [smartView, setSmartView] = useState(deepLinkDue ? 'due' : 'all');
   const [selectedWordsById, setSelectedWordsById] = useState({});
   const selectedIds = Object.values(selectedWordsById).map((word) => word.id);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -90,7 +96,7 @@ export default function WordsPage() {
     try {
       const data = await wordService.getWords({
         page, size: pageSize, query, entryType: tab,
-        categoryId, mastered, sortBy, sortDir,
+        categoryId, mastered, dueOnly, dueDate, stage, sortBy, sortDir,
       });
       setWords(data.content);
       setSelectedWordsById((current) => {
@@ -105,14 +111,14 @@ export default function WordsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, query, tab, categoryId, mastered, sortBy, sortDir]);
+  }, [page, pageSize, query, tab, categoryId, mastered, dueOnly, dueDate, stage, sortBy, sortDir]);
 
   // Refetch without showing the loading spinner (used after CRUD so there's no flash)
   const silentFetch = useCallback(async () => {
     try {
       const data = await wordService.getWords({
         page, size: pageSize, query, entryType: tab,
-        categoryId, mastered, sortBy, sortDir,
+        categoryId, mastered, dueOnly, dueDate, stage, sortBy, sortDir,
       });
       setWords(data.content);
       setSelectedWordsById((current) => {
@@ -123,7 +129,7 @@ export default function WordsPage() {
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
     } catch { /* silently ignore */ }
-  }, [page, pageSize, query, tab, categoryId, mastered, sortBy, sortDir]);
+  }, [page, pageSize, query, tab, categoryId, mastered, dueOnly, dueDate, stage, sortBy, sortDir]);
 
   const setWordSelected = (word, selected) => {
     setSelectedWordsById((current) => {
@@ -163,16 +169,18 @@ export default function WordsPage() {
   const handleTabChange      = (v) => { setTab(v);        setPage(0); };
   const handleSearch         = (e) => { setQuery(e.target.value); setPage(0); };
   const handleCategoryChange = (id) => { setCategoryId(id); setPage(0); };
-  const handleMasteredToggle = (v) => { setMastered(v);  setPage(0); };
+  const handleMasteredToggle = (v) => { setMastered(v); setDueOnly(false); setDueDate(null); setStage(null); setSmartView('all'); setPage(0); };
   const handleSortChange     = (idx) => { setSortIdx(idx); setPage(0); };
   const handlePageSizeChange = (s) => { setPageSize(s);  setPage(0); };
   const applySmartView = (view) => {
     setSmartView(view); setPage(0);
-    if (view === 'due') { setMastered(false); setSortIdx(4); }
-    else if (view === 'weak') { setMastered(false); setSortIdx(5); }
-    else if (view === 'recent') { setMastered(null); setSortIdx(0); }
-    else if (view === 'never') { setMastered(false); setSortIdx(0); }
-    else { setMastered(null); setSortIdx(0); }
+    setDueDate(null);
+    setStage(null);
+    if (view === 'due') { setDueOnly(true); setMastered(false); setSortIdx(4); }
+    else if (view === 'weak') { setDueOnly(false); setMastered(false); setSortIdx(5); }
+    else if (view === 'recent') { setDueOnly(false); setMastered(null); setSortIdx(0); }
+    else if (view === 'never') { setDueOnly(false); setMastered(false); setSortIdx(0); }
+    else { setDueOnly(false); setMastered(null); setSortIdx(0); }
   };
 
   useEffect(() => {
@@ -188,11 +196,11 @@ export default function WordsPage() {
 
   const clearAllFilters = () => {
     setQuery(''); setTab(''); setCategoryId(null);
-    setMastered(null); setSortIdx(0); setPage(0);
+    setMastered(null); setDueOnly(false); setDueDate(null); setStage(null); setSmartView('all'); setSortIdx(0); setPage(0);
   };
 
-  const hasActiveFilters = query || tab || categoryId !== null || mastered !== null || sortIdx !== 0;
-  const advancedFilterCount = (categoryId !== null ? 1 : 0) + (mastered !== null ? 1 : 0) + (sortIdx !== 0 ? 1 : 0);
+  const hasActiveFilters = query || tab || categoryId !== null || mastered !== null || dueOnly || dueDate || stage !== null || sortIdx !== 0;
+  const advancedFilterCount = (categoryId !== null ? 1 : 0) + (mastered !== null ? 1 : 0) + (dueOnly ? 1 : 0) + (dueDate ? 1 : 0) + (stage !== null ? 1 : 0) + (sortIdx !== 0 ? 1 : 0);
 
   // ── CRUD handlers ──────────────────────────────────────────────────────
 
@@ -326,6 +334,9 @@ export default function WordsPage() {
   if (categoryId)    activeChips.push({ label: categories.find(c => c.id === categoryId)?.name || 'Category', clear: () => handleCategoryChange(null) });
   if (mastered === true)  activeChips.push({ label: '✅ Mastered', clear: () => handleMasteredToggle(null) });
   if (mastered === false) activeChips.push({ label: '⏳ Not Mastered', clear: () => handleMasteredToggle(null) });
+  if (dueOnly) activeChips.push({ label: 'Due now', clear: () => { setDueOnly(false); setSmartView('all'); setPage(0); } });
+  if (dueDate) activeChips.push({ label: `Due ${new Date(`${dueDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`, clear: () => { setDueDate(null); setPage(0); } });
+  if (stage) activeChips.push({ label: `${stage.charAt(0)}${stage.slice(1).toLowerCase()} stage`, clear: () => { setStage(null); setPage(0); } });
   if (sortIdx !== 0) activeChips.push({ label: `↕ ${SORT_OPTIONS[sortIdx].label}`, clear: () => handleSortChange(0) });
   if (query)         activeChips.push({ label: `🔍 "${query}"`, clear: () => { setQuery(''); setPage(0); } });
 
@@ -335,9 +346,9 @@ export default function WordsPage() {
     <div className="sm:max-w-5xl sm:mx-auto space-y-4">
 
       {/* ── Header ── */}
-      <PageHeader space="Learn" title="My Words" description="Your words and phrases, gathered in one calm, searchable place." action={<Button onClick={openAdd} className="!bg-[var(--mv-terracotta)] hover:!bg-[#984a36]"><PlusIcon className="h-4 w-4" /> Add entry</Button>} />
+      <PageHeader space="Learn" title="Words" description="A calm, searchable collection of your words and phrases." action={<Button onClick={openAdd} className="!bg-[var(--mv-terracotta)] hover:!bg-[#984a36]"><PlusIcon className="h-4 w-4" /> Add entry</Button>} />
 
-      {stats && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--mv-line)] pb-4 text-sm text-[var(--mv-ink-soft)]"><span><strong className="text-[var(--mv-ink)]">{stats.total}</strong> entries · <strong className="text-[var(--mv-moss)]">{stats.dueToday}</strong> due today</span>{stats.dueToday > 0 && <Button size="sm" onClick={() => window.location.assign('/practice')} className="!bg-[var(--mv-moss)] hover:!bg-[var(--mv-moss-dark)]">Practice due words</Button>}</div>}
+      {stats && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--mv-line)] pb-4 text-sm text-[var(--mv-ink-soft)]"><span><strong className="text-[var(--mv-ink)]">{stats.total}</strong> entries · <strong className="text-[var(--mv-moss)]">{stats.dueToday}</strong> due now</span>{stats.dueToday > 0 && <Button size="sm" onClick={() => window.location.assign('/practice')} className="!bg-[var(--mv-moss)] hover:!bg-[var(--mv-moss-dark)]">Practice due words</Button>}</div>}
 
       <details className="group">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-[var(--mv-radius-md)] border border-[var(--mv-line)] px-4 text-sm font-semibold text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]"><span>Export vocabulary</span><span className="text-xs group-open:rotate-180">⌄</span></summary>

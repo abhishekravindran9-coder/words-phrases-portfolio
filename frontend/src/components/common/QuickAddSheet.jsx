@@ -3,6 +3,7 @@ import { XMarkIcon, PlusIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Button from './Button';
 import { wordService } from '../../services/wordService';
+import { BRAND } from '../../utils/brand';
 
 export default function QuickAddSheet({ isOpen, onClose, onCreated }) {
   const [word, setWord] = useState('');
@@ -46,7 +47,7 @@ export default function QuickAddSheet({ isOpen, onClose, onCreated }) {
       <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-xl animate-slide-up rounded-t-[1.5rem] border border-[var(--mv-line)] bg-[var(--mv-paper)] p-5 shadow-2xl sm:bottom-6 sm:rounded-[1.5rem] sm:p-7">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--mv-moss)]">Add to the vault</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--mv-moss)]">Add to {BRAND.name}</p>
             <h2 id="quick-add-title" className="mv-display mt-1 text-2xl text-[var(--mv-ink)]">Keep a new word close.</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close quick add" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]">
@@ -66,7 +67,7 @@ export default function QuickAddSheet({ isOpen, onClose, onCreated }) {
             ))}
           </div>
           <Button type="submit" loading={saving} className="min-h-12 w-full justify-center !rounded-[var(--mv-radius-md)] !bg-[var(--mv-moss)] hover:!bg-[var(--mv-moss-dark)]">
-            <PlusIcon className="h-5 w-5" /> Add to My Vault
+            <PlusIcon className="h-5 w-5" /> Add to {BRAND.name}
           </Button>
         </form>
       </div>

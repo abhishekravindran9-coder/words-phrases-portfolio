@@ -26,6 +26,8 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
 
     long countByUser(User user);
 
+    Optional<JournalEntry> findFirstByUserOrderByCreatedAtDesc(User user);
+
     long countByUserAndCreatedAtGreaterThanEqual(User user, LocalDateTime from);
 
     @Query("SELECT COUNT(DISTINCT w.id) FROM JournalEntry j JOIN j.usedWords w WHERE j.user = :user AND j.createdAt >= :from")

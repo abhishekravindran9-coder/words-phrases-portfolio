@@ -5,6 +5,7 @@ import com.wordphrases.model.Word;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.util.List;
 
 /** Shared definitions consumed by Dashboard, Practice, and Progress. */
@@ -42,6 +43,14 @@ public final class LearningPolicy {
             try { return ZoneId.of(requested); } catch (DateTimeException ignored) { }
         }
         return ZoneId.of("UTC");
+    }
+
+    public static LocalDate today(ZoneId zone) {
+        return LocalDate.now(zone);
+    }
+
+    public static LocalDate localDate(Instant instant, ZoneId zone) {
+        return instant.atZone(zone).toLocalDate();
     }
 
     public static double expectedRecallFloor(String tier) {

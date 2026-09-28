@@ -5,6 +5,7 @@ export const wordService = {
     page = 0, size = 20,
     query = '', entryType = '',
     categoryId = null, mastered = null,
+    dueOnly = null, dueDate = null, stage = null,
     sortBy = 'createdAt', sortDir = 'desc',
   } = {}) {
     const res = await api.get('/words', {
@@ -14,6 +15,9 @@ export const wordService = {
         entryType:  entryType  || undefined,
         categoryId: categoryId ?? undefined,
         mastered:   mastered   ?? undefined,
+        dueOnly:    dueOnly    ?? undefined,
+        dueDate:    dueDate    || undefined,
+        stage:      stage      || undefined,
       },
     });
     return res.data.data;

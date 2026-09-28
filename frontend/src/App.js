@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -7,6 +7,7 @@ import { FontSizeProvider } from './context/FontSizeContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import { BRAND } from './utils/brand';
 
 // Pages
 import LoginPage      from './pages/LoginPage';
@@ -22,11 +23,65 @@ const PropertyDetailPage = lazy(() => import('./pages/PropertyDetailPage'));
 
 const canSignUp = () => false;
 
+function BrandMetadata() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const pageTitle = pathname === '/dashboard' || pathname === '/' ? 'Today'
+      : pathname.startsWith('/property-tracker') ? 'Portfolio'
+        : pathname === '/words' ? 'Words'
+          : pathname.replace(/^\//, '').replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+    document.title = `${pageTitle} · ${BRAND.name}`;
+  }, [pathname]);
+
+  useEffect(() => {
+    let description = document.querySelector('meta[name="description"]');
+    if (!description) {
+      description = document.createElement('meta');
+      description.name = 'description';
+      document.head.appendChild(description);
+    }
+    description.content = BRAND.description;
+    let themeColor = document.querySelector('meta[name="theme-color"]');
+    if (!themeColor) {
+      themeColor = document.createElement('meta');
+      themeColor.name = 'theme-color';
+      document.head.appendChild(themeColor);
+    }
+    themeColor.content = BRAND.themeColor;
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
+    }
+    favicon.href = `${process.env.PUBLIC_URL || ''}/favicon.svg`;
+    let manifestLink = document.querySelector('link[rel="manifest"]');
+    if (!manifestLink) {
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      document.head.appendChild(manifestLink);
+    }
+    const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify({
+      name: BRAND.name,
+      short_name: BRAND.name,
+      description: BRAND.description,
+      start_url: '/',
+      display: 'standalone',
+      theme_color: BRAND.themeColor,
+      background_color: '#fbfaf7',
+      icons: [{ src: `${process.env.PUBLIC_URL || ''}/favicon.svg`, sizes: 'any', type: 'image/svg+xml' }],
+    })], { type: 'application/manifest+json' }));
+    manifestLink.href = manifestUrl;
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <FontSizeProvider>
     <ThemeProvider>
       <BrowserRouter>
+        <BrandMetadata />
         <AuthProvider>
         <Toaster
           position="top-right"

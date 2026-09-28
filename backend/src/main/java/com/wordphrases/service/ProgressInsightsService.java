@@ -38,8 +38,8 @@ public class ProgressInsightsService {
     @Transactional(readOnly = true)
     public ProgressInsightsResponse getInsights(Long userId, String range, String timezone) {
         User user = userService.getUserById(userId);
-        ZoneId zone = LearningPolicy.zone(firstNonBlank(timezone, user.getTimezone()));
-        LocalDate today = LocalDate.now(zone);
+            ZoneId zone = LearningPolicy.zone(user.getTimezone());
+        LocalDate today = LearningPolicy.today(zone);
         String normalizedRange = normalizeRange(range);
         LocalDate from = rangeStart(normalizedRange, today, user);
 
@@ -94,7 +94,7 @@ public class ProgressInsightsService {
 
         List<Object[]> leechRows = wordRepository.findLeeches(user, from, today, 3, 2.5, PageRequest.of(0, 10));
         List<ProgressInsightsResponse.Leech> leeches = leechRows.stream().map(this::toLeech).toList();
-        long overdue = wordRepository.countOverdue(user, today.minusDays(1));
+            long overdue = wordRepository.countOverdue(user, today);
         int dailyPace = overdue == 0 ? 0 : (int) Math.ceil(overdue / 14.0);
 
         List<LocalDate> reviewDates = reviewRepository.findDistinctReviewDatesByUser(user);

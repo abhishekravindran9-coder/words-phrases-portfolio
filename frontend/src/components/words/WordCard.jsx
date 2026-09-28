@@ -10,11 +10,11 @@ function stageFor(word) {
   return ['Mature', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200'];
 }
 
-function dueLabel(date) {
+function dueLabel(date, localToday) {
   if (!date) return 'Not scheduled';
-  const today = new Date();
-  const current = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const due = new Date(`${date}T00:00:00`);
+  const today = localToday || new Date().toISOString().slice(0, 10);
+  const current = new Date(`${today}T00:00:00Z`);
+  const due = new Date(`${date}T00:00:00Z`);
   const days = Math.round((due - current) / 86400000);
   if (days < 0) return 'Due';
   if (days === 0) return 'Due today';
@@ -34,7 +34,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
       {selectionMode && selected && <CheckCircleIcon className="h-5 w-5 shrink-0 text-[var(--mv-moss)]" aria-hidden="true" />}
       <span className="mv-display min-w-0 flex-1 truncate text-lg text-[var(--mv-ink)]">{word.word}</span>
       <span className={`hidden rounded-full px-2 py-1 text-[10px] font-bold sm:inline-flex ${stageClass}`}>{stage}</span>
-      <span className={`shrink-0 text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate)}</span>
+      <span className={`shrink-0 text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate, word.localToday)}</span>
       <div className="flex shrink-0 items-center gap-1 opacity-70 group-hover:opacity-100">
         {supported && <button type="button" aria-label={`Read ${word.word} aloud`} onClick={(event) => { event.stopPropagation(); speak(word.word); }} className={`flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[var(--mv-paper-deep)] ${speaking ? 'text-[var(--mv-moss)]' : 'text-[var(--mv-ink-soft)]'}`}><SpeakerWaveIcon className="h-4 w-4" /></button>}
         <button type="button" aria-label={`Edit ${word.word}`} onClick={(event) => { event.stopPropagation(); onEdit?.(word); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)]"><PencilIcon className="h-4 w-4" /></button>
@@ -72,7 +72,7 @@ export default function WordCard({ word, onEdit, onDelete, onView, compact = fal
       <button type="button" onClick={(event) => { event.stopPropagation(); selectionMode ? onSelect?.(!selected) : onView?.(word); }} className="mt-5 text-left"><h2 className="mv-display text-3xl leading-tight text-[var(--mv-ink)]">{word.word}</h2>{(word.partOfSpeech || word.pronunciation) && <p className="mt-1 text-xs italic text-[var(--mv-ink-soft)]">{word.pronunciation}{word.pronunciation && word.partOfSpeech ? ' · ' : ''}{word.partOfSpeech}</p>}<p className={`mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--mv-ink-soft)] ${recallMode && coverDefinitions ? 'select-none blur-sm' : ''}`}>{word.definition || 'No definition yet.'}</p></button>
       {word.categoryName && <p className="mt-4 text-xs font-semibold text-[var(--mv-ink-soft)]">{word.categoryName}</p>}
       {expanded && <div className="mt-4 space-y-4 border-t border-[var(--mv-line)] pt-4">{examples.length > 0 && <div><p className="mv-eyebrow mb-2">Examples</p><ul className="space-y-2 text-sm italic text-[var(--mv-ink-soft)]">{examples.map((example, index) => <li key={index} className="border-l-2 border-[var(--mv-moss)] pl-3">{example}</li>)}</ul></div>}{word.notes && <div><p className="mv-eyebrow mb-2">Notes</p><p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--mv-ink-soft)]">{word.notes}</p></div>}</div>}
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--mv-line)] pt-4"><button type="button" onClick={(event) => { event.stopPropagation(); setExpanded((open) => !open); }} className="min-h-10 text-xs font-bold text-[var(--mv-moss)]">{expanded ? 'Show less' : 'Examples & notes'}</button><span title={word.nextReviewDate ? `Next review ${word.nextReviewDate}` : 'No review scheduled'} className={`text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate)}</span></div>
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--mv-line)] pt-4"><button type="button" onClick={(event) => { event.stopPropagation(); setExpanded((open) => !open); }} className="min-h-10 text-xs font-bold text-[var(--mv-moss)]">{expanded ? 'Show less' : 'Examples & notes'}</button><span title={word.nextReviewDate ? `Next review ${word.nextReviewDate}` : 'No review scheduled'} className={`text-xs font-semibold ${isProblem ? 'text-[var(--mv-terracotta)]' : 'text-[var(--mv-ink-soft)]'}`}>{dueLabel(word.nextReviewDate, word.localToday)}</span></div>
     </article>
   );
 }

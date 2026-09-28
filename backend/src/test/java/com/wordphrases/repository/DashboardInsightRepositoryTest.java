@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,6 +25,44 @@ class DashboardInsightRepositoryTest {
     @Autowired private WordRepository wordRepository;
     @Autowired private ReviewRepository reviewRepository;
     @Autowired private JournalEntryRepository journalEntryRepository;
+
+    @Test
+    void browseDueAndStageFiltersMatchTheSharedTodayPredicates() {
+        User user = userRepository.saveAndFlush(User.builder()
+                .username("today-filter-test")
+                .email("today-filter-test@example.com")
+                .passwordHash("not-used-in-this-test")
+                .build());
+        LocalDate today = LocalDate.of(2026, 9, 28);
+        Word overdue = wordRepository.saveAndFlush(Word.builder().user(user).word("overdue")
+                .mastered(false).nextReviewDate(today.minusDays(2)).intervalDays(1).build());
+        Word dueToday = wordRepository.saveAndFlush(Word.builder().user(user).word("due today")
+                .mastered(false).nextReviewDate(today).intervalDays(1).build());
+        Word dueTomorrow = wordRepository.saveAndFlush(Word.builder().user(user).word("due tomorrow")
+                .mastered(false).nextReviewDate(today.plusDays(1)).intervalDays(1).build());
+        Word mastered = wordRepository.saveAndFlush(Word.builder().user(user).word("mastered")
+                .mastered(true).nextReviewDate(today.minusDays(4)).intervalDays(25).build());
+        Word learning = wordRepository.saveAndFlush(Word.builder().user(user).word("learning")
+                .mastered(false).nextReviewDate(today.plusDays(3)).intervalDays(3).build());
+        reviewRepository.saveAndFlush(Review.builder().user(user).word(learning)
+                .reviewDate(today.minusDays(1)).quality(4).build());
+
+        var pageable = PageRequest.of(0, 20, Sort.by("word").ascending());
+        var duePage = wordRepository.findWithFilters(user, null, null, null, true, null, today, null, pageable);
+        assertThat(duePage.getContent()).extracting(Word::getWord).containsExactly("due today", "overdue");
+        assertThat(wordRepository.findWithFilters(user, null, null, null, false, null, today, "NEW", pageable)
+                .getContent()).extracting(Word::getWord).containsExactly("due today", "due tomorrow", "overdue");
+        assertThat(wordRepository.findWithFilters(user, null, null, null, false, null, today, "LEARNING", pageable)
+                .getContent()).extracting(Word::getWord).containsExactly("learning");
+        assertThat(wordRepository.findWithFilters(user, null, null, null, null, null, today, "MASTERED", pageable)
+                .getContent()).extracting(Word::getWord).containsExactly("mastered");
+        assertThat(wordRepository.findWithFilters(user, null, null, null, null, today.plusDays(1), today, null, pageable)
+                .getContent()).extracting(Word::getWord).containsExactly("due tomorrow");
+        assertThat(wordRepository.countDueForReview(user, today)).isEqualTo(duePage.getTotalElements());
+        assertThat(wordRepository.countOverdue(user, today)).isEqualTo(1);
+        assertThat(overdue.getId()).isNotNull();
+        assertThat(dueTomorrow.getId()).isNotNull();
+    }
 
     @Test
     void aggregatesNearDueWordsWeakCategoriesAndJournalPractice() {

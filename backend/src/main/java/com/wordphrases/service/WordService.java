@@ -34,15 +34,19 @@ public class WordService {
     @Transactional(readOnly = true)
     public Page<WordResponse> getWordsForUser(
             Long userId, String query, String entryType,
-            Long categoryId, Boolean mastered, Pageable pageable) {
+            Long categoryId, Boolean mastered, Boolean dueOnly, LocalDate scheduledDate,
+            String requestedStage, Pageable pageable) {
         User user = userService.getUserById(userId);
         String q    = (query     != null && !query.isBlank())     ? query.trim().toLowerCase() : null;
         String type = (entryType != null && !entryType.isBlank()) ? entryType.toUpperCase()    : null;
+        String stage = requestedStage != null && java.util.Set.of("NEW", "LEARNING", "YOUNG", "MATURE", "MASTERED")
+                .contains(requestedStage.trim().toUpperCase()) ? requestedStage.trim().toUpperCase() : null;
+        LocalDate today = LearningPolicy.today(LearningPolicy.zone(user.getTimezone()));
         Page<Word> page;
         if (q != null) {
-            page = wordRepository.findWithFiltersAndSearch(user, q, type, categoryId, mastered, pageable);
+            page = wordRepository.findWithFiltersAndSearch(user, q, type, categoryId, mastered, dueOnly, scheduledDate, today, stage, pageable);
         } else {
-            page = wordRepository.findWithFilters(user, type, categoryId, mastered, pageable);
+            page = wordRepository.findWithFilters(user, type, categoryId, mastered, dueOnly, scheduledDate, today, stage, pageable);
         }
         return page.map(this::toWordResponse);
     }
@@ -55,7 +59,7 @@ public class WordService {
                 .mastered(wordRepository.countByUserAndMastered(user, true))
                 .words(wordRepository.countByUserAndEntryType(user, "WORD"))
                 .phrases(wordRepository.countByUserAndEntryType(user, "PHRASE"))
-                .dueToday(wordRepository.countDueForReview(user, LocalDate.now(LearningPolicy.zone(user.getTimezone()))))
+                .dueToday(wordRepository.countDueForReview(user, LearningPolicy.today(LearningPolicy.zone(user.getTimezone()))))
                 .build();
     }
 
@@ -77,7 +81,7 @@ public class WordService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    @CacheEvict(cacheNames = {"progressInsights", "today"}, allEntries = true)
     public WordResponse createWord(Long userId, WordRequest request) {
         User user = userService.getUserById(userId);
         Category category = resolveCategory(request.getCategoryId(), user);
@@ -103,14 +107,14 @@ public class WordService {
                 .sourceContext(request.getSourceContext())
                 .userExample(request.getUserExample())
                 .userMnemonic(request.getUserMnemonic())
-                .nextReviewDate(LocalDate.now())
+                .nextReviewDate(LearningPolicy.today(LearningPolicy.zone(user.getTimezone())))
                 .build();
 
         return toWordResponse(wordRepository.save(word));
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    @CacheEvict(cacheNames = {"progressInsights", "today"}, allEntries = true)
     public WordResponse updateWord(Long userId, Long wordId, WordRequest request) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(wordId, user)
@@ -140,7 +144,7 @@ public class WordService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    @CacheEvict(cacheNames = {"progressInsights", "today"}, allEntries = true)
     public void deleteWord(Long userId, Long wordId) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(wordId, user)
@@ -151,7 +155,7 @@ public class WordService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    @CacheEvict(cacheNames = {"progressInsights", "today"}, allEntries = true)
     public void restoreWord(Long userId, Long wordId) {
         wordRepository.restoreByIdAndUser(wordId, userId);
     }
@@ -170,7 +174,7 @@ public class WordService {
     }
 
     public WordResponse toWordResponse(Word word) {
-        long totalReviews = reviewRepository.countByUser(word.getUser());
+        long totalReviews = reviewRepository.countByWord(word);
         return WordResponse.builder()
                 .id(word.getId())
                 .word(word.getWord())
@@ -200,6 +204,7 @@ public class WordService {
                 .intervalDays(word.getIntervalDays())
                 .repetitions(word.getRepetitions())
                 .nextReviewDate(word.getNextReviewDate())
+                .localToday(LearningPolicy.today(LearningPolicy.zone(word.getUser().getTimezone())))
                 .mastered(word.getMastered())
                 .createdAt(word.getCreatedAt())
                 .updatedAt(word.getUpdatedAt())

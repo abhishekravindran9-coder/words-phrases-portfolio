@@ -18,6 +18,7 @@ import com.wordphrases.repository.PrepaymentRepository;
 import com.wordphrases.repository.PropertyRepository;
 import com.wordphrases.repository.PropertyMoneyAuditRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,17 +43,23 @@ public class PropertyService {
 
     @Transactional(readOnly = true)
     public List<PropertyResponse> getAll(Long userId) {
+        return getAll(userId, LocalDate.now());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getAll(Long userId, LocalDate today) {
         User user = userService.getUserById(userId);
         return propertyRepository.findByUserOrderByCreatedAtDesc(user)
-                .stream().map(this::toResponse).toList();
+                .stream().map(property -> toResponse(property, today)).toList();
     }
 
     @Transactional(readOnly = true)
     public PropertyResponse getById(Long userId, Long propertyId) {
-        return toResponse(findOwned(userId, propertyId));
+        return toResponse(findOwned(userId, propertyId), LocalDate.now());
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public PropertyResponse create(Long userId, PropertyRequest req) {
         User user = userService.getUserById(userId);
         Property property = Property.builder()
@@ -65,10 +72,11 @@ public class PropertyService {
                 .selfContributionPlanned(nullOr(req.getSelfContributionPlanned(), 0.0))
                 .loanAmountPlanned(nullOr(req.getLoanAmountPlanned(), 0.0))
                 .build();
-        return toResponse(propertyRepository.save(property));
+        return toResponse(propertyRepository.save(property), LocalDate.now());
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public PropertyResponse update(Long userId, Long propertyId, PropertyRequest req) {
         Property property = findOwned(userId, propertyId);
         if (req.getName() != null)                          property.setName(req.getName());
@@ -87,10 +95,11 @@ public class PropertyService {
             audit(userId, "PROPERTY", propertyId, "loanAmountPlanned", property.getLoanAmountPlanned(), req.getLoanAmountPlanned());
             property.setLoanAmountPlanned(req.getLoanAmountPlanned());
         }
-        return toResponse(propertyRepository.save(property));
+        return toResponse(propertyRepository.save(property), LocalDate.now());
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public void delete(Long userId, Long propertyId) {
         Property property = findOwned(userId, propertyId);
         property.setDeletedAt(java.time.Instant.now());
@@ -121,6 +130,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public BuilderInstallmentResponse addInstallment(Long userId, Long propertyId, BuilderInstallmentRequest req) {
         Property property = findOwned(userId, propertyId);
         BuilderInstallment inst = BuilderInstallment.builder()
@@ -133,6 +143,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public BuilderInstallmentResponse updateInstallment(Long userId, Long propertyId, Long instId,
                                                         BuilderInstallmentRequest req) {
         Property property = findOwned(userId, propertyId);
@@ -151,6 +162,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public BuilderInstallmentResponse markInstallmentPaid(Long userId, Long propertyId, Long instId,
                                                           MarkInstallmentPaidRequest req) {
         Property property = findOwned(userId, propertyId);
@@ -170,6 +182,7 @@ public class PropertyService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "today", allEntries = true)
     public void deleteInstallment(Long userId, Long propertyId, Long instId) {
         Property property = findOwned(userId, propertyId);
         BuilderInstallment inst = installmentRepository.findByIdAndProperty(instId, property)
@@ -185,7 +198,7 @@ public class PropertyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
     }
 
-    private PropertyResponse toResponse(Property p) {
+    private PropertyResponse toResponse(Property p, LocalDate today) {
         List<BuilderInstallment> installments = installmentRepository.findByPropertyOrderByDueDateAsc(p);
         int totalInst = installments.size();
         int paidInst  = (int) installments.stream().filter(i -> Boolean.TRUE.equals(i.getPaid())).count();
@@ -195,12 +208,14 @@ public class PropertyService {
                 .mapToDouble(i -> nullOr(i.getAmount(), 0.0)).sum();
         double paidViaSelf = installments.stream().mapToDouble(i -> nullOr(i.getPaidViaSelf(), 0.0)).sum();
         double paidViaLoan = installments.stream().mapToDouble(i -> nullOr(i.getPaidViaLoan(), 0.0)).sum();
-        LocalDate today = LocalDate.now();
         int overdueCount = (int) installments.stream().filter(i -> !Boolean.TRUE.equals(i.getPaid())
             && i.getDueDate() != null && i.getDueDate().isBefore(today)).count();
         double overdueAmount = installments.stream().filter(i -> !Boolean.TRUE.equals(i.getPaid())
             && i.getDueDate() != null && i.getDueDate().isBefore(today))
             .mapToDouble(i -> nullOr(i.getAmount(), 0.0)).sum();
+        LocalDate oldestOverdueDate = installments.stream().filter(i -> !Boolean.TRUE.equals(i.getPaid())
+            && i.getDueDate() != null && i.getDueDate().isBefore(today))
+            .map(BuilderInstallment::getDueDate).min(LocalDate::compareTo).orElse(null);
         double pct = totalAmt > 0 ? (paidAmt / totalAmt) * 100 : 0.0;
 
         // Possession countdown
@@ -283,6 +298,7 @@ public class PropertyService {
                 .paidViaLoan(paidViaLoan)
                 .overdueInstallmentCount(overdueCount)
                 .overdueInstallmentAmount(overdueAmount)
+                .longestOverdueDays(oldestOverdueDate == null ? 0L : ChronoUnit.DAYS.between(oldestOverdueDate, today))
                 .propertyStatus(p.getPossessionDate() != null && !p.getPossessionDate().isAfter(today) ? "POSSESSED" : "IN_PROGRESS")
                 .build();
     }

@@ -52,8 +52,20 @@ public interface WordRepository extends JpaRepository<Word, Long> {
     @Query("SELECT w FROM Word w WHERE w.user = :user AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today) AND w.mastered = false ORDER BY w.nextReviewDate ASC NULLS FIRST")
     List<Word> findDueForReview(@Param("user") User user, @Param("today") LocalDate today);
 
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate < :today ORDER BY w.easeFactor ASC, w.lapseCount DESC, w.nextReviewDate ASC, w.id ASC")
+    List<Word> findOverdueForToday(@Param("user") User user, @Param("today") LocalDate today, Pageable pageable);
+
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate = :today ORDER BY w.easeFactor ASC, w.lapseCount DESC, w.id ASC")
+    List<Word> findDueToday(@Param("user") User user, @Param("today") LocalDate today, Pageable pageable);
+
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate IS NULL ORDER BY w.easeFactor ASC, w.lapseCount DESC, w.id ASC")
+    List<Word> findUnscheduledDue(@Param("user") User user, Pageable pageable);
+
+    @Query("SELECT DISTINCT w FROM Word w LEFT JOIN Review r ON r.word = w WHERE w.user = :user AND w.mastered = false AND r.id IS NULL ORDER BY w.createdAt DESC, w.id ASC")
+    List<Word> findNewCards(@Param("user") User user, Pageable pageable);
+
     /** Non-mastered cards approaching their due date, prioritised by lower ease factor. */
-    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through ORDER BY w.easeFactor ASC, w.nextReviewDate ASC")
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.nextReviewDate > :today AND w.nextReviewDate <= :through ORDER BY w.easeFactor ASC, w.lapseCount DESC, w.nextReviewDate ASC, w.id ASC")
     List<Word> findApproachingDueWords(@Param("user") User user,
                                        @Param("today") LocalDate today,
                                        @Param("through") LocalDate through,
@@ -90,12 +102,23 @@ public interface WordRepository extends JpaRepository<Word, Long> {
           AND (:entryType  IS NULL OR w.entryType   = :entryType)
           AND (:categoryId IS NULL OR w.category.id = :categoryId)
           AND (:mastered   IS NULL OR w.mastered    = :mastered)
+        AND (:dueOnly IS NULL OR :dueOnly = false OR (w.mastered = false AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today)))
+          AND (:scheduledDate IS NULL OR (w.mastered = false AND w.nextReviewDate = :scheduledDate))
+        AND (:stage IS NULL OR (:stage = 'MASTERED' AND w.mastered = true)
+            OR (:stage = 'NEW' AND w.mastered = false AND NOT EXISTS (SELECT r.id FROM Review r WHERE r.word = w))
+            OR (:stage = 'LEARNING' AND w.mastered = false AND w.intervalDays < 7 AND EXISTS (SELECT r.id FROM Review r WHERE r.word = w))
+            OR (:stage = 'YOUNG' AND w.mastered = false AND w.intervalDays >= 7 AND w.intervalDays < 21)
+            OR (:stage = 'MATURE' AND w.mastered = false AND w.intervalDays >= 21))
         """)
     Page<Word> findWithFilters(
         @Param("user")       User    user,
         @Param("entryType")  String  entryType,
         @Param("categoryId") Long    categoryId,
         @Param("mastered")   Boolean mastered,
+        @Param("dueOnly")    Boolean dueOnly,
+        @Param("scheduledDate") LocalDate scheduledDate,
+        @Param("today")      LocalDate today,
+        @Param("stage")      String stage,
         Pageable pageable
     );
 
@@ -110,6 +133,13 @@ public interface WordRepository extends JpaRepository<Word, Long> {
           AND (:entryType  IS NULL OR w.entryType   = :entryType)
           AND (:categoryId IS NULL OR w.category.id = :categoryId)
           AND (:mastered   IS NULL OR w.mastered    = :mastered)
+        AND (:dueOnly IS NULL OR :dueOnly = false OR (w.mastered = false AND (w.nextReviewDate IS NULL OR w.nextReviewDate <= :today)))
+          AND (:scheduledDate IS NULL OR (w.mastered = false AND w.nextReviewDate = :scheduledDate))
+        AND (:stage IS NULL OR (:stage = 'MASTERED' AND w.mastered = true)
+            OR (:stage = 'NEW' AND w.mastered = false AND NOT EXISTS (SELECT r.id FROM Review r WHERE r.word = w))
+            OR (:stage = 'LEARNING' AND w.mastered = false AND w.intervalDays < 7 AND EXISTS (SELECT r.id FROM Review r WHERE r.word = w))
+            OR (:stage = 'YOUNG' AND w.mastered = false AND w.intervalDays >= 7 AND w.intervalDays < 21)
+            OR (:stage = 'MATURE' AND w.mastered = false AND w.intervalDays >= 21))
         AND (LOWER(w.word) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(w.definition) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(w.exampleSentence) LIKE LOWER(CONCAT('%', :query, '%'))
@@ -123,16 +153,22 @@ public interface WordRepository extends JpaRepository<Word, Long> {
         @Param("entryType")  String  entryType,
         @Param("categoryId") Long    categoryId,
         @Param("mastered")   Boolean mastered,
+        @Param("dueOnly")    Boolean dueOnly,
+        @Param("scheduledDate") LocalDate scheduledDate,
+        @Param("today")      LocalDate today,
+        @Param("stage")      String stage,
         Pageable pageable
     );
 
     /** Top N hardest words: lowest ease factor, not yet mastered. */
-    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false ORDER BY w.easeFactor ASC, w.repetitions ASC")
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false ORDER BY w.easeFactor ASC, w.lapseCount DESC, w.nextReviewDate ASC, w.id ASC")
     List<Word> findWeakestWords(@Param("user") User user, Pageable pageable);
 
-    /** Words overdue by more than 1 day. */
-    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.nextReviewDate < :yesterday AND w.mastered = false")
-    long countOverdue(@Param("user") User user, @Param("yesterday") LocalDate yesterday);
+    /** Words due before the user's local calendar date. */
+    @Query("SELECT COUNT(w) FROM Word w WHERE w.user = :user AND w.nextReviewDate < :today AND w.mastered = false")
+    long countOverdue(@Param("user") User user, @Param("today") LocalDate today);
+
+    long countByUserAndMasteredFalseAndNextReviewDate(User user, LocalDate nextReviewDate);
 
     long countByUserAndEntryType(User user, String entryType);
 
@@ -150,6 +186,9 @@ public interface WordRepository extends JpaRepository<Word, Long> {
 
     @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false AND w.intervalDays < 21 ORDER BY w.intervalDays DESC, w.repetitions DESC, w.easeFactor ASC")
     List<Word> findClosestToMature(User user, Pageable pageable);
+
+    @Query("SELECT w FROM Word w WHERE w.user = :user AND w.mastered = false ORDER BY w.repetitions DESC, w.easeFactor ASC, w.lapseCount DESC, w.id ASC")
+    List<Word> findClosestToMastery(User user, Pageable pageable);
 
     @Query("""
         SELECT w, COUNT(r), AVG(r.quality), SUM(CASE WHEN r.quality < 3 THEN 1 ELSE 0 END)

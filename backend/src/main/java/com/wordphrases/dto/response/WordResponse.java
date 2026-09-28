@@ -49,6 +49,7 @@ public class WordResponse {
     private Integer intervalDays;
     private Integer repetitions;
     private LocalDate nextReviewDate;
+    private LocalDate localToday;
     private Boolean mastered;
 
     private LocalDateTime createdAt;

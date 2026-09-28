@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import toast from 'react-hot-toast';
+import { BRAND } from '../utils/brand';
 
 const canSignUp = () =>
   document.cookie.split(';').some((c) => c.trim() === 'wp_signup_enabled=true');
@@ -49,9 +50,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">&#x1F511;</div>
-          <h1 className="text-3xl font-extrabold text-gray-900">My Vault</h1>
-          <p className="text-gray-500 mt-2">Your personal language learning companion</p>
+          <div className="mv-display text-5xl font-semibold text-[var(--mv-moss)] mb-3">{BRAND.name}</div>
+          <h1 className="sr-only">{BRAND.name}</h1>
+          <p className="text-gray-500 mt-2">{BRAND.tagline}</p>
         </div>
 
         {/* Card */}

@@ -4,11 +4,20 @@ import com.wordphrases.model.Word;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class LearningPolicyTest {
+    @Test
+    void localCalendarDateFollowsUserZoneAcrossUtcMidnight() {
+        Instant instant = Instant.parse("2026-09-27T20:30:00Z");
+        assertEquals(LocalDate.of(2026, 9, 27), LearningPolicy.localDate(instant, ZoneId.of("UTC")));
+        assertEquals(LocalDate.of(2026, 9, 28), LearningPolicy.localDate(instant, ZoneId.of("Asia/Kolkata")));
+    }
+
     @Test
     void assignsSharedStageBoundaries() {
         Word word = Word.builder().intervalDays(6).mastered(false).build();

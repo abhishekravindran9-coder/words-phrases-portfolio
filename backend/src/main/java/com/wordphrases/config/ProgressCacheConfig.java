@@ -17,7 +17,11 @@ public class ProgressCacheConfig {
         CaffeineCacheManager manager = new CaffeineCacheManager("progressInsights");
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(500)
-                .expireAfterWrite(Duration.ofMinutes(2)));
+            .expireAfterWrite(Duration.ofMinutes(2)));
+        manager.registerCustomCache("today", Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(Duration.ofSeconds(30))
+            .build());
         return manager;
     }
 }

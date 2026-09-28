@@ -77,15 +77,15 @@ public class ReviewService {
      * and persists the review event.
      */
     @Transactional
-    @CacheEvict(cacheNames = "progressInsights", allEntries = true)
+    @CacheEvict(cacheNames = {"progressInsights", "today"}, allEntries = true)
     public ReviewResponse submitReview(Long userId, ReviewResultRequest request) {
         User user = userService.getUserById(userId);
         Word word = wordRepository.findByIdAndUser(request.getWordId(), user)
                 .orElseThrow(() -> new ResourceNotFoundException("Word", "id", request.getWordId()));
 
         Instant reviewedAt = Instant.now();
-        String timezoneId = resolveTimezone(request.getTimezoneId(), user.getTimezone());
-        LocalDate reviewDate = reviewedAt.atZone(ZoneId.of(timezoneId)).toLocalDate();
+        String timezoneId = resolveTimezone(null, user.getTimezone());
+        LocalDate reviewDate = LearningPolicy.localDate(reviewedAt, ZoneId.of(timezoneId));
         int intervalBefore = word.getIntervalDays();
         applySM2(word, request.getQuality(), reviewDate);
 

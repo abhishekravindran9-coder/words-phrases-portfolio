@@ -8,9 +8,10 @@ import { useFontSize } from '../../context/FontSizeContext';
 import api from '../../services/api';
 import CommandPalette from './CommandPalette';
 import QuickAddSheet from './QuickAddSheet';
+import { BRAND } from '../../utils/brand';
 
 const spaces = [
-  { label: 'Learn', items: [{ to: '/dashboard', label: 'Today', Icon: HomeIcon }, { to: '/words', label: 'My Words', Icon: BookOpenIcon }, { to: '/practice', label: 'Practice', Icon: SparklesIcon }, { to: '/progress', label: 'Progress', Icon: ChartBarIcon }] },
+  { label: 'Learn', items: [{ to: '/dashboard', label: 'Today', Icon: HomeIcon }, { to: '/words', label: 'Words', Icon: BookOpenIcon }, { to: '/practice', label: 'Practice', Icon: SparklesIcon }, { to: '/progress', label: 'Progress', Icon: ChartBarIcon }] },
   { label: 'Write', items: [{ to: '/journal', label: 'Journal', Icon: PencilSquareIcon }] },
   { label: 'Portfolio', items: [{ to: '/property-tracker', label: 'Property Tracker', Icon: BuildingOffice2Icon }] },
 ];
@@ -51,8 +52,8 @@ export default function AppShell() {
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col border-r border-[var(--mv-line)] bg-[var(--mv-paper)] transition-[width,transform] duration-300 ease-out lg:translate-x-0 ${collapsed ? 'lg:w-[5.5rem]' : ''} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className={`flex h-[4.75rem] items-center border-b border-[var(--mv-line)] ${collapsed ? 'justify-center px-3' : 'justify-between px-5'}`}>
           <button type="button" onClick={() => navigate('/dashboard')} className={`flex items-center gap-3 text-left ${collapsed ? 'justify-center' : ''}`} aria-label="Go to Today">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--mv-moss)] text-white"><BookOpenIcon className="h-5 w-5" /></span>
-            {!collapsed && <span><span className="mv-display block text-xl leading-none">My Vault</span><span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mv-ink-soft)]">A personal dictionary</span></span>}
+            <span className="mv-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--mv-moss)] text-xl text-white" aria-hidden="true">{BRAND.name.charAt(0)}</span>
+            {!collapsed && <span><span className="mv-display block text-xl leading-none">{BRAND.name}</span><span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mv-ink-soft)]">{BRAND.tagline}</span></span>}
           </button>
           <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--mv-ink-soft)] hover:bg-[var(--mv-paper-deep)] lg:hidden"><XMarkIcon className="h-5 w-5" /></button>
         </div>

@@ -7,7 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 const destinations = [
   { label: 'Go to Today', hint: 'Your daily starting point', to: '/dashboard', Icon: BookOpenIcon },
-  { label: 'Go to My Words', hint: 'Browse your vocabulary', to: '/words', Icon: BookOpenIcon },
+  { label: 'Go to Words', hint: 'Browse your vocabulary', to: '/words', Icon: BookOpenIcon },
   { label: 'Go to Practice', hint: 'Begin a focused session', to: '/practice', Icon: PlayIcon },
   { label: 'Go to Progress', hint: 'See what is sticking', to: '/progress', Icon: CommandLineIcon },
   { label: 'Go to Journal', hint: 'Write and reflect', to: '/journal', Icon: PencilSquareIcon },

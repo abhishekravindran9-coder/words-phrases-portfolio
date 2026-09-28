@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { practiceService } from '../services/practiceService';
 import { quizService } from '../services/quizService';
 import PracticeCard from '../components/practice/PracticeCard';
@@ -81,6 +81,7 @@ function Metric({ icon: Icon, label, value, detail, accent = 'indigo' }) {
 
 export default function PracticePage() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [overview, setOverview] = useState(null);
   const [legacyQuizStats, setLegacyQuizStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +95,7 @@ export default function PracticePage() {
   const [answers, setAnswers] = useState([]);
   const [phase, setPhase] = useState('setup');
   const [saveError, setSaveError] = useState('');
+  const [todaySessionStarted, setTodaySessionStarted] = useState(false);
 
   const refreshOverview = useCallback(async () => {
     const result = await practiceService.getOverview();
@@ -110,6 +112,16 @@ export default function PracticePage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const selectedWords = location.state?.todaySession;
+    if (!selectedWords?.length || todaySessionStarted) return;
+    setTodaySessionStarted(true);
+    setItems(buildPracticeItems(selectedWords, 'MIXED'));
+    setAnswers([]);
+    setIndex(0);
+    setPhase('session');
+  }, [location.state, todaySessionStarted]);
 
   const startSession = async () => {
     setStarting(true);
@@ -135,6 +147,20 @@ export default function PracticePage() {
     setSaveError('');
     const result = await practiceService.submitAnswer(answer);
     setAnswers((previous) => [...previous, { ...answer, word: items[index].word, result }]);
+    const reviewedWord = items[index].word;
+    const wasDue = reviewedWord.mastered === false && (!reviewedWord.nextReviewDate || reviewedWord.nextReviewDate <= result.reviewDate);
+    setOverview((previous) => {
+      if (!previous) return previous;
+      const successfulReviews = previous.successfulReviews + (result.quality >= 3 ? 1 : 0);
+      const totalReviews = previous.totalReviews + 1;
+      return {
+        ...previous,
+        successfulReviews,
+        totalReviews,
+        recallRate: Math.round(successfulReviews * 100 / totalReviews),
+        dueCards: Math.max(0, previous.dueCards - (wasDue ? 1 : 0)),
+      };
+    });
     // Refresh aggregate stats in the background. A stats refresh failure must not
     // cause the already-persisted SRS answer to be submitted twice on retry.
     refreshOverview().catch(() => {});

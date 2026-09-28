@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { BRAND } from '../../utils/brand';
 import api from '../../services/api';
 import {
   HomeIcon, BookOpenIcon,
@@ -10,7 +11,7 @@ import {
 
 const LINKS = [
   { to: '/dashboard',        label: 'Dashboard',         Icon: HomeIcon },
-  { to: '/words',            label: 'My Words',          Icon: BookOpenIcon },
+  { to: '/words',            label: 'Words',             Icon: BookOpenIcon },
   { to: '/practice',         label: 'Practice',          Icon: SparklesIcon },
   { to: '/progress',         label: 'Progress',          Icon: ChartBarIcon },
   { to: '/journal',          label: 'Journal',           Icon: PencilSquareIcon },
@@ -59,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }) {
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-          <span className="text-xl font-bold text-primary-600">&#x1F511; My Vault</span>
+          <span className="mv-display text-xl font-semibold text-[var(--mv-moss)]">{BRAND.name}</span>
           <button
             className="lg:hidden text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             onClick={onClose}

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { propertyService } from '../../services/propertyService';
 import { isPrivacyMode, maskMoney, togglePrivacyMode } from '../../utils/privacy';
 import BuilderInstallmentsTab from './BuilderInstallmentsTab';
+import { BRAND } from '../../utils/brand';
 
 const money = (value) => `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value || 0)}`;
 const dateLabel = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not set';
@@ -60,7 +61,7 @@ export default function PaymentsTab({ propertyId }) {
   };
   const exportCalendar = () => {
     const events = rows.filter((row) => !row.paid && row.dueDate).map((row) => `BEGIN:VEVENT\nSUMMARY:${row.label}\nDTSTART;VALUE=DATE:${row.dueDate.replaceAll('-', '')}\nDESCRIPTION:${row.kind} obligation\nEND:VEVENT`).join('\n');
-    const blob = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//My Vault//Property//EN\n${events}\nEND:VCALENDAR`], { type: 'text/calendar' });
+    const blob = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//${BRAND.name}//Property//EN\n${events}\nEND:VCALENDAR`], { type: 'text/calendar' });
     const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'property-obligations.ics'; link.click(); URL.revokeObjectURL(url);
   };
 

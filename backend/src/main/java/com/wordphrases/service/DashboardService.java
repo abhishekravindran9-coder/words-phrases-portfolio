@@ -38,7 +38,7 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(Long userId) {
         User user = userService.getUserById(userId);
-        LocalDate today = LocalDate.now(LearningPolicy.zone(user.getTimezone()));
+        LocalDate today = LearningPolicy.today(LearningPolicy.zone(user.getTimezone()));
         LocalDate weekStart = today.minusDays(6);
         LocalDate previousWeekStart = today.minusDays(13);
         LocalDate previousWeekEnd = today.minusDays(7);
@@ -48,7 +48,7 @@ public class DashboardService {
         long totalWords    = wordRepository.countByUser(user);
         long masteredWords = wordRepository.countByUserAndMastered(user, true);
         long dueToday      = wordRepository.countDueForReview(user, today);
-        long overdueCount  = wordRepository.countOverdue(user, today.minusDays(1));
+            long overdueCount  = wordRepository.countOverdue(user, today);
         long reviewedToday = reviewRepository.countByUserAndReviewDate(user, today);
         long reviewsThisWeek = reviewRepository.countByUserAndReviewDateBetween(user, weekStart, today);
         long reviewsPreviousWeek = reviewRepository.countByUserAndReviewDateBetween(user, previousWeekStart, previousWeekEnd);

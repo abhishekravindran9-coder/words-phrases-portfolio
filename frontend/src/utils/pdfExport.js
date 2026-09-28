@@ -1,3 +1,5 @@
+import { BRAND } from './brand';
+
 const COLORS = {
   ink: '#172554',
   navy: '#10213A',
@@ -71,7 +73,7 @@ function documentShell(title, subtitle, countLabel, count, sections, pageSize) {
     header: (currentPage) => currentPage === 1 ? null : ({
       columns: [
         { text: title.toUpperCase(), style: 'small', bold: true, characterSpacing: 0.8 },
-        { text: 'PERSONAL LEARNING COLLECTION', style: 'small', alignment: 'right', characterSpacing: 0.5 },
+        { text: `${BRAND.name.toUpperCase()} · PERSONAL COLLECTION`, style: 'small', alignment: 'right', characterSpacing: 0.5 },
       ],
       margin: [leftMargin, Math.max(20, topMargin * 0.38), rightMargin, 0],
     }),
@@ -118,7 +120,7 @@ function documentShell(title, subtitle, countLabel, count, sections, pageSize) {
       },
       ...sections,
     ],
-    info: { title, subject: subtitle, creator: 'Words & Phrases' },
+    info: { title, subject: subtitle, creator: BRAND.name },
   };
 }
 
@@ -186,7 +188,7 @@ export async function downloadWordsPdf(words, pdfMakeInstance, pageSize = 'A4') 
   if (phraseEntries.length) {
     sections.push(...renderEntries(phraseEntries, 'PHRASE'));
   }
-  const doc = documentShell('My Vocabulary', 'Word & phrase library', 'entries', words.length, [
+  const doc = documentShell(`${BRAND.name} · Vocabulary`, 'Word & phrase library', 'entries', words.length, [
     ...sections,
   ], pageSize);
   const pdfMake = pdfMakeInstance || await getPdfMake();
@@ -277,7 +279,7 @@ export async function downloadJournalPdf(entries, pdfMakeInstance, pageSize = 'A
 
   const totalWords = entries.reduce((total, entry) => total + wordCount(entry.content || ''), 0);
   const vocabularyMentions = entries.reduce((total, entry) => total + (entry.usedWords?.length || 0), 0);
-  const doc = documentShell('My Journal', 'Personal reflections & vocabulary practice', 'entries', entries.length, [
+  const doc = documentShell(`${BRAND.name} · Journal`, 'Personal reflections & vocabulary practice', 'entries', entries.length, [
     {
       table: {
         widths: ['*', '*', '*'],

@@ -1,6 +1,6 @@
-# Words & Phrases Portfolio
+# Letterbook
 
-A full-stack personal language learning platform with spaced-repetition flashcard reviews, a vocabulary journal, progress analytics, and email reminders.
+A personal space for words, writing, and property, with spaced-repetition practice, a journal, progress insights, and a property ledger.
 
 ---
 
@@ -9,11 +9,12 @@ A full-stack personal language learning platform with spaced-repetition flashcar
 | Feature | Description |
 |---|---|
 | **Authentication** | JWT-based login & registration (bcrypt passwords) |
-| **Dashboard** | Daily stats, upcoming reviews, and "word of the day" |
+| **Today** | A daily plan across words, writing, and property |
 | **Vocabulary Manager** | Add/edit/delete words with definitions, examples, categories |
 | **Spaced Repetition Reviews** | SM-2 algorithm — animated flip-card, 0–5 quality grades |
 | **Progress Analytics** | Review activity bar chart, mastery doughnut chart, streak counter |
 | **Journal** | Markdown-style diary entries with mood tracking and word tags |
+| **Property Tracker** | Property payments, loan schedules, and financial summaries |
 | **Categories** | Colour-coded word groups with word-count aggregates |
 | **Reminders** | Scheduled email reminders (daily or weekly, configurable time & days) |
 | **Responsive UI** | Mobile-first, collapsible sidebar, Tailwind CSS |

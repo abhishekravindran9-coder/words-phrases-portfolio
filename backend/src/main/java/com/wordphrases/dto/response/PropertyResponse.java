@@ -47,5 +47,6 @@ public class PropertyResponse {
     private Double paidViaLoan;
     private Integer overdueInstallmentCount;
     private Double overdueInstallmentAmount;
+    private Long longestOverdueDays;
     private String propertyStatus;
 }

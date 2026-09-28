@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { MOOD_OPTIONS } from '../utils/constants';
+import { useSearchParams } from 'react-router-dom';
 
 const EMPTY_FORM = { title: '', content: '', mood: '', articleUrl: '', articleTitle: '', category: '', usedWordIds: [] };
 const PAGE_SIZE  = 6;
@@ -52,6 +53,8 @@ function computeStreak(entries) {
  * Journal page — list, create, edit and read personal reflections.
  */
 export default function JournalPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedWordId = searchParams.get('wordId');
   const [allEntries,   setAllEntries]   = useState([]);
   const [totalEntries, setTotalEntries] = useState(0);
   const [words,        setWords]        = useState([]);
@@ -80,6 +83,7 @@ export default function JournalPage() {
   const [movingEntryId,  setMovingEntryId]  = useState(null); // id of card being moved to folder
   const [showFilters,    setShowFilters]    = useState(false);
   const [selectedIds,    setSelectedIds]    = useState([]);
+  const [linkedPromptStarted, setLinkedPromptStarted] = useState(false);
 
   // Detect which vocab words appear in content (whole-word, case-insensitive)
   const detectWordsInContent = useCallback((content) => {
@@ -111,6 +115,22 @@ export default function JournalPage() {
   useEffect(() => {
     wordService.getWords({ size: 200 }).then((d) => setWords(d.content ?? [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!linkedWordId || linkedPromptStarted) return;
+    setLinkedPromptStarted(true);
+    wordService.getWord(linkedWordId).then((word) => {
+      setEditEntry(null);
+      setForm({ ...EMPTY_FORM, title: `Using ${word.word}`, usedWordIds: [word.id] });
+      setWordSearch('');
+      setModalOpen(true);
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete('wordId');
+        return next;
+      }, { replace: true });
+    }).catch(() => toast.error('That vocabulary entry could not be linked to a journal prompt.'));
+  }, [linkedPromptStarted, linkedWordId, setSearchParams]);
 
   // Client-side filter + sort + paginate
   const filteredEntries = useMemo(() => {

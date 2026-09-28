@@ -4,6 +4,7 @@ import { Bars3Icon, UserCircleIcon, SunIcon, MoonIcon } from '@heroicons/react/2
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useFontSize } from '../../context/FontSizeContext';
+import { BRAND } from '../../utils/brand';
 
 /**
  * Top navigation bar – shows hamburger menu on mobile, user actions on the right.
@@ -27,7 +28,7 @@ export default function Navbar({ onMenuClick }) {
       </button>
 
       {/* Centre: brand (visible on mobile when sidebar is hidden) */}
-      <span className="text-primary-600 font-bold text-lg lg:hidden">&#x1F511; My Vault</span>
+      <span className="mv-display text-[var(--mv-moss)] font-semibold text-lg lg:hidden">{BRAND.name}</span>
 
       {/* Right: user actions */}
       <div className="flex items-center gap-2 ml-auto">

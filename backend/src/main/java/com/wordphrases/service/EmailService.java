@@ -85,11 +85,11 @@ public class EmailService {
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(userEmail);
-        message.setSubject("📚 Words & Phrases – Time to Review!");
+        message.setSubject("Letterbook – Time to Review");
         message.setText(String.format(
                 "Hi %s,%n%nYou have %d word(s) due for review today.%n%n" +
                 "Keep your streak going! Visit your dashboard to start reviewing.%n%n" +
-                "Happy learning,%nWords & Phrases Team",
+                "Happy learning,%nLetterbook",
                 displayName, dueCount
         ));
 

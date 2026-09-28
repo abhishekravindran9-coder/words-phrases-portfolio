@@ -35,7 +35,7 @@ public class PracticeService {
     @Transactional(readOnly = true)
     public PracticeOverviewResponse getOverview(Long userId) {
         User user = userService.getUserById(userId);
-        LocalDate today = LocalDate.now(resolveZone(user));
+        LocalDate today = LearningPolicy.today(resolveZone(user));
         long totalReviews = reviewRepository.countByUser(user);
         long successfulReviews = reviewRepository.countByUserAndQualityGreaterThanEqual(user, 3);
         int recallRate = totalReviews > 0
@@ -55,7 +55,7 @@ public class PracticeService {
     @Transactional(readOnly = true)
     public PracticeQueueResponse getQueue(Long userId, String requestedMode, int requestedSize) {
         User user = userService.getUserById(userId);
-        LocalDate today = LocalDate.now(resolveZone(user));
+        LocalDate today = LearningPolicy.today(resolveZone(user));
         String mode = requestedMode == null ? "DUE" : requestedMode.trim().toUpperCase();
         if (!mode.equals("DUE") && !mode.equals("CUSTOM") && !mode.equals("LEECHES")) {
             throw new IllegalArgumentException("Practice mode must be DUE, CUSTOM, or LEECHES");
@@ -74,7 +74,7 @@ public class PracticeService {
             selected = wordRepository.findRandomPracticeWords(userId, size);
         } else {
             List<Object[]> leechRows = wordRepository.findLeeches(
-                user, LocalDate.now(resolveZone(user)).minusDays(89), LocalDate.now(resolveZone(user)),
+                user, LearningPolicy.today(resolveZone(user)).minusDays(89), LearningPolicy.today(resolveZone(user)),
                 2, 2.5, PageRequest.of(0, size));
             selected = leechRows.stream().map(row -> (Word) row[0]).toList();
             availableCount = selected.size();
@@ -141,6 +141,7 @@ public class PracticeService {
                 .intervalDays(word.getIntervalDays())
                 .repetitions(word.getRepetitions())
                 .nextReviewDate(word.getNextReviewDate())
+                .localToday(LearningPolicy.today(resolveZone(word.getUser())))
                 .mastered(word.getMastered())
                 .createdAt(word.getCreatedAt())
                 .updatedAt(word.getUpdatedAt())

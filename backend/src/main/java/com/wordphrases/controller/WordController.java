@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 
 /**
  * REST controller for vocabulary word / phrase management.
@@ -48,6 +49,9 @@ public class WordController extends BaseController {
             @RequestParam(required = false) String  entryType,
             @RequestParam(required = false) Long    categoryId,
             @RequestParam(required = false) Boolean mastered,
+            @RequestParam(required = false) Boolean dueOnly,
+            @RequestParam(required = false) LocalDate dueDate,
+            @RequestParam(required = false) String stage,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc")      String sortDir,
             @RequestParam(defaultValue = "0")  int page,
@@ -62,7 +66,7 @@ public class WordController extends BaseController {
 
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<WordResponse> words = wordService.getWordsForUser(
-                getCurrentUserId(), query, entryType, categoryId, mastered, pageable);
+                getCurrentUserId(), query, entryType, categoryId, mastered, dueOnly, dueDate, stage, pageable);
         return ResponseEntity.ok(ApiResponse.ok(words));
     }
 
