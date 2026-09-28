@@ -7,6 +7,13 @@ import BuilderInstallmentsTab from './BuilderInstallmentsTab';
 
 const money = (value) => `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value || 0)}`;
 const dateLabel = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not set';
+const installmentSource = (item) => {
+  const sources = [
+    item.paidViaLoan > 0 && `Bank ${money(item.paidViaLoan)}`,
+    item.paidViaSelf > 0 && `Self ${money(item.paidViaSelf)}`,
+  ].filter(Boolean);
+  return sources.length ? sources.join(' · ') : 'Pending';
+};
 
 export default function PaymentsTab({ propertyId }) {
   const [installments, setInstallments] = useState([]);
@@ -32,7 +39,7 @@ export default function PaymentsTab({ propertyId }) {
     ...installments.map((item) => ({
       id: `installment-${item.id}`, kind: 'BUILDER', label: item.description || 'Builder installment',
       date: item.paidDate || item.dueDate, dueDate: item.dueDate, amount: item.amount,
-      paid: item.paid, source: item.paidViaLoan > 0 ? 'Bank' : item.paidViaSelf > 0 ? 'Self' : 'Pending',
+      paid: item.paid, source: installmentSource(item),
     })),
     ...schedule.filter((item) => item.paid).map((item) => ({
       id: `emi-${item.month}`, kind: 'EMI', label: `EMI #${item.month}`, date: item.date,
